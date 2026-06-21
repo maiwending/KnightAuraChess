@@ -603,7 +603,15 @@ function PuzzleCard({ puzzle }) {
 }
 
 /* ---------- LearnPage ---------- */
-export default function LearnPage({ onBack }) {
+export default function LearnPage({ onBack, onOpenCommunityPuzzles }) {
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = 'knightAuraChess — Learn';
+    return () => {
+      document.title = previousTitle;
+    };
+  }, []);
+
   return (
     <div className="lp-page">
       <header className="lp-header">
@@ -719,6 +727,7 @@ export default function LearnPage({ onBack }) {
         </div>
         <div className="lp-outro-actions">
           <button className="lp-btn-ghost" onClick={onBack}>← Back</button>
+          <button className="lp-btn-ghost" onClick={onOpenCommunityPuzzles}>Community puzzles</button>
           <button className="lp-btn-primary" onClick={onBack}>Start a game →</button>
         </div>
       </footer>

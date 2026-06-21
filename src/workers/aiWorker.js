@@ -98,9 +98,6 @@ const PST = {
   ],
 };
 
-const FILES = ['a','b','c','d','e','f','g','h'];
-const RANKS = ['8','7','6','5','4','3','2','1'];
-
 function mirrorIndex(i) {
   return (7 - Math.floor(i / 8)) * 8 + (i % 8);
 }
@@ -188,7 +185,7 @@ function evaluate(game) {
   for (const [r, f] of bKnightCoords) addKnightToAura(r, f, bAura);
 
   // Second pass: score every piece
-  for (const { p, ri, fi, idx } of pieces) {
+  for (const { p, idx } of pieces) {
     const val = PIECE_VALUE[p.type];
 
     // Choose PST (king switches to endgame table when material is low)
@@ -283,7 +280,7 @@ function qsearch(game, alpha, beta, qdepth) {
     // Delta pruning: skip hopeless captures (can't raise alpha even with optimism margin)
     if (standPat + (PIECE_VALUE[move.captured] || 200) + 150 < alpha) continue;
 
-    const child = new KnightJumpChess(fen);
+    const child = new KnightJumpChess(fen, game.getVariantRules());
     child.move(move);
     const score = -qsearch(child, -beta, -alpha, qdepth + 1);
 
@@ -341,7 +338,7 @@ function alphaBeta(game, depth, alpha, beta, ply, useQSearch) {
 
   for (let i = 0; i < ordered.length; i++) {
     const move  = ordered[i];
-    const child = new KnightJumpChess(fen);
+    const child = new KnightJumpChess(fen, game.getVariantRules());
     child.move(move);
 
     let score;
@@ -395,10 +392,13 @@ const DIFFICULTY = {
 };
 
 // ── Find best move (iterative deepening) ─────────────────────────
-function findBestMove(fen, difficulty) {
+function findBestMove(fen, difficulty, variantRules) {
   const settings = DIFFICULTY[difficulty] || DIFFICULTY.medium;
-  const game     = new KnightJumpChess(fen);
+  const game     = new KnightJumpChess(fen, variantRules);
   const moves    = game.moves({ verbose: true });
+
+  // A FEN alone does not identify positions played under different optional rules.
+  TT.clear();
 
   if (moves.length === 0) return null;
   if (moves.length === 1) return { move: moves[0], score: 0, nodes: 1, depth: 1 };
@@ -431,7 +431,7 @@ function findBestMove(fen, difficulty) {
     for (const move of ordered) {
       if (performance.now() > searchDeadline) { timedOut = true; break; }
 
-      const child = new KnightJumpChess(fen);
+      const child = new KnightJumpChess(fen, game.getVariantRules());
       child.move(move);
 
       // Pass -rootAlpha as beta: once child can refute to better than our current best,
@@ -471,12 +471,12 @@ function findBestMove(fen, difficulty) {
 
 // ── Worker message handler ────────────────────────────────────────
 self.onmessage = function (e) {
-  const { type, fen, difficulty, id } = e.data;
+  const { type, fen, difficulty, variantRules, id } = e.data;
   if (type !== 'search') return;
 
   try {
     const t0     = performance.now();
-    const result = findBestMove(fen, difficulty || 'medium');
+    const result = findBestMove(fen, difficulty || 'medium', variantRules);
     const elapsed = performance.now() - t0;
 
     if (!result || !result.move) {

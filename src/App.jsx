@@ -1,41 +1,27 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import AiWorker from './workers/aiWorker.js?worker';
 import { useOnlineClock } from './workers/useOnlineClock.js';
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  increment,
-  limit,
-  onSnapshot,
-  query,
-  runTransaction,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where
-} from 'firebase/firestore';
 import KnightJumpChess from './KnightJumpChess.js';
 import AppHeader from './components/AppHeader.jsx';
 import AppPageRouter from './components/AppPageRouter.jsx';
 import RuntimeErrorBoundary from './components/RuntimeErrorBoundary.jsx';
 import SeasonDecorations from './components/SeasonDecorations.jsx';
-import { themeToVars } from './components/ThemeCreator.jsx';
 import { useAuth } from './contexts/AuthContext.jsx';
+import { useAppNavigation } from './hooks/useAppNavigation.js';
+import { useGameActions } from './hooks/useGameActions.js';
+import { useOnlineGameState } from './hooks/useOnlineGameState.js';
+import { useAiBotEngine } from './hooks/useAiBotEngine.js';
+import { BASE_THEMES, usePersistentPreferences } from './hooks/usePersistentPreferences.js';
+import { usePracticeState } from './hooks/usePracticeState.js';
+import { useAppToasts } from './hooks/useAppToasts.js';
 import {
   BOARD_HAND_CAPTURE_TOTAL_MS,
   BOARD_HAND_TOTAL_MS,
 } from './utils/boardHandAnimation.js';
 import { db, firebaseEnabled } from './utils/firebase.js';
-import { moveApiEnabled, moveApiStrict, submitAuthoritativeMove } from './utils/moveApi.js';
+import { DEFAULT_VARIANT_RULES, normalizeVariantRules } from './utils/variantRules.js';
 import './App.css';
 const UserProfileModal = React.lazy(() => import('./components/UserProfileModal.jsx'));
 
-const GAMES_COLLECTION = 'games';
-const RULE_ID = 'chessrider';
 const AI_DIFFICULTY_LEVELS = ['easy', 'medium', 'hard', 'expert'];
 
 const BOT_POOL = [
@@ -61,8 +47,6 @@ const BOT_POOL = [
   { uid: 'bot_rowan_reyes',   name: 'Rowan Reyes' },
 ];
 
-const APP_BASE_PATH = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '') || '';
-
 const TIME_CONTROLS = [
   { label: '1 min',  seconds: 60 },
   { label: '3 min',  seconds: 180 },
@@ -72,30 +56,17 @@ const TIME_CONTROLS = [
   { label: '30 min', seconds: 1800 },
 ];
 const DEFAULT_TIME_CONTROL = 300;
-const PRACTICE_STATE_KEY = 'cr_practice_state';
-const BOARD_VIEW_MODES = ['flat', 'realistic'];
-const BASE_THEMES = [
-  { key: 'classic', label: 'Classic', l: 'swatch-classic-light', d: 'swatch-classic-dark' },
-  { key: 'slate', label: 'Slate', l: 'swatch-slate-light', d: 'swatch-slate-dark' },
-  { key: 'rosewood', label: 'Rosewood', l: 'swatch-rosewood-light', d: 'swatch-rosewood-dark' },
-];
+const VARIANT_RULES_KEY = 'cr_variant_rules';
+
+const loadVariantRules = () => {
+  try {
+    return normalizeVariantRules(JSON.parse(localStorage.getItem(VARIANT_RULES_KEY) || 'null'));
+  } catch {
+    return { ...DEFAULT_VARIANT_RULES };
+  }
+};
 
 const createNewGame = () => new KnightJumpChess();
-
-const getInitialBoardView = () => {
-  const savedBoardView = localStorage.getItem('cr_board_view');
-  if (savedBoardView === '3d') return 'realistic';
-  if (BOARD_VIEW_MODES.includes(savedBoardView)) return savedBoardView;
-  return localStorage.getItem('cr_3d') === 'true' ? 'realistic' : 'flat';
-};
-
-const getInitialBoardCornerRadius = () => {
-  const savedRadius = Number.parseInt(localStorage.getItem('cr_board_corner_radius') || '', 10);
-  if (Number.isFinite(savedRadius)) {
-    return Math.min(24, Math.max(0, savedRadius));
-  }
-  return 8;
-};
 
 const buildMoveAnimationPayload = (board, moveLike, actor = 'self') => {
   if (!board || !moveLike?.from || !moveLike?.to) return null;
@@ -113,8 +84,6 @@ const buildMoveAnimationPayload = (board, moveLike, actor = 'self') => {
 };
 
 const formatTurn = (turn) => (turn === 'w' ? 'White' : 'Black');
-const getMoveSeq = (data) => (Number.isFinite(data?.moveSeq) ? data.moveSeq : 0);
-
 const formatTime = (seconds) => {
   const mins = Math.floor(seconds / 60);
   const secs = (seconds % 60).toFixed(1);
@@ -130,29 +99,6 @@ const formatClock = (seconds) => {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
-const getPageFromLocation = () => {
-  if (typeof window === 'undefined') return 'home';
-  const path = window.location.pathname;
-  if (/\/SignIn\/?$/.test(path)) return 'signin';
-  if (/\/Tutorials\/?$/.test(path)) return 'tutorials';
-  if (/\/Learn\/?$/.test(path)) return 'learn';
-  if (/\/Play\/?$/.test(path)) return 'game';
-  if (/\/uptime\/?$/i.test(path)) return 'uptime';
-  return 'home';
-};
-
-const setBrowserPage = (page, replace = false) => {
-  if (typeof window === 'undefined') return;
-  let nextUrl = APP_BASE_PATH ? `${APP_BASE_PATH}/` : '/';
-  if (page === 'signin') nextUrl = `${APP_BASE_PATH}/SignIn`;
-  else if (page === 'tutorials') nextUrl = `${APP_BASE_PATH}/Tutorials`;
-  else if (page === 'learn') nextUrl = `${APP_BASE_PATH}/Learn`;
-  else if (page === 'game') nextUrl = `${APP_BASE_PATH}/Play`;
-  else if (page === 'uptime') nextUrl = `${APP_BASE_PATH}/uptime`;
-  const method = replace ? 'replaceState' : 'pushState';
-  window.history[method](null, '', nextUrl);
-};
-
 export default function App() {
   const {
     user,
@@ -166,7 +112,7 @@ export default function App() {
     signInAnonymously,
     signOut
   } = useAuth();
-  const [currentPage, setCurrentPage] = useState(() => getPageFromLocation());
+  const { currentPage, navigateToPage } = useAppNavigation(user);
   const [game, setGame] = useState(() => createNewGame());
   const [moveHistory, setMoveHistory] = useState([]);
   const [selectedSquare, setSelectedSquare] = useState(null);
@@ -175,36 +121,42 @@ export default function App() {
   const [lastMove, setLastMove] = useState(null);
   const [flipped, setFlipped] = useState(false);
   const [gameId, setGameIdRaw] = useState(() => localStorage.getItem('cr_gameId') || null);
-  const setGameId = (id) => {
+  const setGameId = useCallback((id) => {
     if (id) localStorage.setItem('cr_gameId', id);
     else localStorage.removeItem('cr_gameId');
     setGameIdRaw(id);
-  };
-  const [gameData, setGameData] = useState(null);
-  const [matchStatus, setMatchStatus] = useState('idle');
-  const [matchError, setMatchError] = useState('');
-  const [connectionState, setConnectionState] = useState('offline');
+  }, []);
   const [setupModalOpen, setSetupModalOpen] = useState(false);
   const [movePending, setMovePending] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('cr_theme') || 'classic');
-  const [customThemes, setCustomThemes] = useState(() => JSON.parse(localStorage.getItem('cr_custom_themes') || '[]'));
-  const [showThemeCreator, setShowThemeCreator] = useState(false);
-  const [boardView, setBoardView] = useState(() => getInitialBoardView());
-  const [boardCornerRadius, setBoardCornerRadius] = useState(() => getInitialBoardCornerRadius());
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('cr_dark') !== 'false');
-  const [pieceStyle, setPieceStyle] = useState('svg');
-  const [liveVoiceChat, setLiveVoiceChat] = useState(() => localStorage.getItem('cr_live_voice_chat') === 'true');
-  const [seasonalDecorations, setSeasonalDecorations] = useState(() => localStorage.getItem('cr_seasonal_decorations') !== 'false');
-  const [seasonalDecorationDensity, setSeasonalDecorationDensity] = useState(() => {
-    const raw = Number.parseInt(localStorage.getItem('cr_seasonal_decoration_density') || '100', 10);
-    if (Number.isNaN(raw)) return 100;
-    return Math.min(180, Math.max(20, raw));
-  });
-  const [waitingGames, setWaitingGames] = useState([]);
+  const {
+    theme,
+    setTheme,
+    customThemes,
+    showThemeCreator,
+    setShowThemeCreator,
+    boardView,
+    setBoardView,
+    board3d,
+    boardCornerRadius,
+    setBoardCornerRadius,
+    darkMode,
+    setDarkMode,
+    pieceStyle,
+    setPieceStyle,
+    showEmpoweredMarks,
+    setShowEmpoweredMarks,
+    liveVoiceChat,
+    setLiveVoiceChat,
+    seasonalDecorations,
+    setSeasonalDecorations,
+    seasonalDecorationDensity,
+    setSeasonalDecorationDensity,
+    customThemeVars,
+    saveCustomTheme,
+    deleteCustomTheme,
+  } = usePersistentPreferences();
   const [joinGameId, setJoinGameId] = useState('');
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [aiThinking, setAiThinking] = useState(false);
-  const [aiError, setAiError] = useState('');
   const [activeTab, setActiveTab] = useState('play');
   const [authMode, setAuthMode] = useState('signin');
   const [authEmail, setAuthEmail] = useState('');
@@ -212,27 +164,15 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [profileModalUid, setProfileModalUid] = useState(null);
   const [pendingDm, setPendingDm] = useState(null);
-  const [unreadDmCount, setUnreadDmCount] = useState(0);
-  const [incomingChallenge, setIncomingChallenge] = useState(null);
   const [moveTimestamps, setMoveTimestamps] = useState([{ white: 0, black: 0 }]);
   const [currentMoveStartTime, setCurrentMoveStartTime] = useState(Date.now());
   const [selectedTimeControl, setSelectedTimeControl] = useState(DEFAULT_TIME_CONTROL);
+  const [setupVariantRules, setSetupVariantRules] = useState(loadVariantRules);
   const [clockWhite, setClockWhite] = useState(null);
   const [clockBlack, setClockBlack] = useState(null);
   const [localResult, setLocalResult] = useState(null);
   const [moveAnimation, setMoveAnimation] = useState(null);
-  const [toasts, setToasts] = useState([]);
-  const timeoutFiredRef = useRef(false);
-  const toastTimersRef = useRef(new Map());
-  const hasHydratedPracticeRef = useRef(false);
-  const lastSnapshotAtRef = useRef(0);
   const localResultRef = useRef(null);
-  const lastAiFenRef = useRef(null);
-  const aiRequestIdRef = useRef(0);
-  const aiWorkerRef = useRef(null);
-  const isBotOnlineGameRef = useRef(false);
-  const botMovePendingRef = useRef(false);
-  const [pendingBotMove, setPendingBotMove] = useState(null);
   const gameRef = useRef(game);
   const lastAnimatedMoveRef = useRef(null);
   const hasLoadedOnlineGameRef = useRef(false);
@@ -241,103 +181,53 @@ export default function App() {
     ? rawAiDifficulty
     : 'medium';
   const [aiDifficulty, setAiDifficulty] = useState(envAiDifficulty);
+  const { toasts, pushToast } = useAppToasts();
+  const practiceState = useMemo(() => ({
+    fen: game.fen(),
+    moveHistory,
+    lastMove,
+    selectedTimeControl,
+    aiEnabled,
+    aiDifficulty,
+    moveTimestamps,
+    localResult,
+    variantRules: game.getVariantRules(),
+  }), [
+    aiDifficulty,
+    aiEnabled,
+    game,
+    lastMove,
+    localResult,
+    moveHistory,
+    moveTimestamps,
+    selectedTimeControl,
+  ]);
+
+  useEffect(() => {
+    localStorage.setItem(VARIANT_RULES_KEY, JSON.stringify(setupVariantRules));
+  }, [setupVariantRules]);
+  usePracticeState({
+    gameId,
+    game,
+    setGame,
+    setMoveHistory,
+    setLastMove,
+    setSelectedTimeControl,
+    setAiEnabled,
+    setAiDifficulty,
+    setMoveTimestamps,
+    setLocalResult,
+    aiDifficultyLevels: AI_DIFFICULTY_LEVELS,
+    practiceState,
+  });
 
   const isOnline = Boolean(gameId);
-  const board3d = boardView === 'realistic';
-
-  useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPage(getPageFromLocation());
-    };
-    window.addEventListener('popstate', handlePopState);
-    setCurrentPage(getPageFromLocation());
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  const navigateToPage = useCallback((page, replace = false) => {
-    setCurrentPage(page);
-    setBrowserPage(page, replace);
-  }, []);
-
-  useEffect(() => {
-    if (user && currentPage === 'signin') {
-      navigateToPage('game', true);
-    }
-  }, [currentPage, navigateToPage, user]);
-
-  useEffect(() => {
-    if (hasHydratedPracticeRef.current) return;
-    hasHydratedPracticeRef.current = true;
-    if (gameId) return;
-    const raw = localStorage.getItem(PRACTICE_STATE_KEY);
-    if (!raw) return;
-    try {
-      const saved = JSON.parse(raw);
-      if (saved?.fen) setGame(new KnightJumpChess(saved.fen));
-      if (Array.isArray(saved?.moveHistory)) setMoveHistory(saved.moveHistory);
-      if (saved?.lastMove?.from && saved?.lastMove?.to) setLastMove(saved.lastMove);
-      if (Number.isFinite(saved?.selectedTimeControl)) setSelectedTimeControl(saved.selectedTimeControl);
-      if (typeof saved?.aiEnabled === 'boolean') setAiEnabled(saved.aiEnabled);
-      if (typeof saved?.aiDifficulty === 'string' && AI_DIFFICULTY_LEVELS.includes(saved.aiDifficulty)) {
-        setAiDifficulty(saved.aiDifficulty);
-      }
-      if (Array.isArray(saved?.moveTimestamps) && saved.moveTimestamps.length > 0) {
-        setMoveTimestamps(saved.moveTimestamps);
-      }
-      if (saved?.localResult) setLocalResult(saved.localResult);
-    } catch {
-      localStorage.removeItem(PRACTICE_STATE_KEY);
-    }
-  }, [gameId]);
-
-  useEffect(() => {
-    if (isOnline) {
-      localStorage.removeItem(PRACTICE_STATE_KEY);
-      return;
-    }
-    const payload = {
-      fen: game.fen(),
-      moveHistory,
-      lastMove,
-      selectedTimeControl,
-      aiEnabled,
-      aiDifficulty,
-      moveTimestamps,
-      localResult,
-    };
-    localStorage.setItem(PRACTICE_STATE_KEY, JSON.stringify(payload));
-  }, [aiDifficulty, aiEnabled, game, isOnline, lastMove, localResult, moveHistory, moveTimestamps, selectedTimeControl]);
-
-  useEffect(() => {
-    if (!isOnline) {
-      setConnectionState('offline');
-      return undefined;
-    }
-    setConnectionState('connecting');
-    const updateStateFromNetwork = () => {
-      if (!navigator.onLine) {
-        setConnectionState('offline');
-        return;
-      }
-      const sinceSnapshot = Date.now() - (lastSnapshotAtRef.current || 0);
-      if (lastSnapshotAtRef.current === 0 || sinceSnapshot > 9000) {
-        setConnectionState('reconnecting');
-      } else {
-        setConnectionState('live');
-      }
-    };
-    const onlineHandler = () => updateStateFromNetwork();
-    const offlineHandler = () => setConnectionState('offline');
-    window.addEventListener('online', onlineHandler);
-    window.addEventListener('offline', offlineHandler);
-    const timer = setInterval(updateStateFromNetwork, 2000);
-    updateStateFromNetwork();
-    return () => {
-      window.removeEventListener('online', onlineHandler);
-      window.removeEventListener('offline', offlineHandler);
-      clearInterval(timer);
-    };
-  }, [isOnline]);
+  const canStartOnlineMatch = Boolean(user && firebaseEnabled && db);
+  const onlineMatchHelpText = !user
+    ? 'Sign in to play online.'
+    : !firebaseEnabled || !db
+      ? 'Online play needs Firebase to be configured.'
+      : '';
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -371,40 +261,6 @@ export default function App() {
     }
   }, [currentPage, isOnline]);
 
-  const pushToast = useCallback((message, level = 'info') => {
-    if (!message) return;
-    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    setToasts((previous) => [...previous.slice(-3), { id, message, level }]);
-    const timer = setTimeout(() => {
-      setToasts((previous) => previous.filter((toast) => toast.id !== id));
-      toastTimersRef.current.delete(id);
-    }, 5000);
-    toastTimersRef.current.set(id, timer);
-  }, []);
-
-  useEffect(() => () => {
-    toastTimersRef.current.forEach((timer) => clearTimeout(timer));
-    toastTimersRef.current.clear();
-  }, []);
-
-  useEffect(() => {
-    const handleWindowError = (event) => {
-      pushToast(event?.message || 'Unexpected runtime error', 'error');
-    };
-    const handleUnhandledRejection = (event) => {
-      const reasonMessage =
-        event?.reason?.message
-        || (typeof event?.reason === 'string' ? event.reason : 'Unhandled async error');
-      pushToast(reasonMessage, 'error');
-    };
-    window.addEventListener('error', handleWindowError);
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
-    return () => {
-      window.removeEventListener('error', handleWindowError);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-    };
-  }, [pushToast]);
-
   useEffect(() => {
     gameRef.current = game;
   }, [game]);
@@ -428,12 +284,138 @@ export default function App() {
     setMoveAnimation(animation);
   }, [board3d]);
 
+  const {
+    gameData,
+    matchStatus,
+    setMatchStatus,
+    matchError,
+    setMatchError,
+    connectionState,
+    setConnectionState,
+    waitingGames,
+    unreadDmCount,
+    incomingChallenge,
+    setGameData,
+  } = useOnlineGameState({
+    authReady,
+    user,
+    firebaseEnabled,
+    db,
+    gameId,
+    setGameId,
+    setGame,
+    setMoveHistory,
+    setLastMove,
+    setSelectedSquare,
+    setLegalMoves,
+    playMoveAnimation,
+    gameRef,
+    lastAnimatedMoveRef,
+    hasLoadedOnlineGameRef,
+  });
+
   const playerColor = useMemo(() => {
     if (!user || !gameData) return null;
     if (gameData.whiteId === user.uid) return 'w';
     if (gameData.blackId === user.uid) return 'b';
     return null;
   }, [gameData, user]);
+
+  const {
+    aiThinking,
+    aiError,
+    requestAiMove,
+    cancelAiSearch,
+    isBotOnlineGame,
+  } = useAiBotEngine({
+    user,
+    db,
+    gameId,
+    isOnline,
+    gameData,
+    setGame,
+    setMoveHistory,
+    setLastMove,
+    setMoveTimestamps,
+    setCurrentMoveStartTime,
+    localResultRef,
+    playMoveAnimation,
+    aiDifficulty,
+    selectedTimeControl,
+    botPool: BOT_POOL,
+    displayName,
+    incomingChallenge,
+    variantRules: setupVariantRules,
+  });
+
+  const {
+    resetPractice,
+    closeSetupModal,
+    handleStartPracticeFromSetup,
+    handleStartAiFromSetup,
+    handleStartOnlineFromSetup,
+    handleSquareClick,
+    handlePromotionChoice,
+    startMatchmaking,
+    createCustomGame,
+    joinCustomGame,
+    toggleReady,
+    handleTimeout,
+    handleChallengeFriend,
+    acceptChallenge,
+    declineChallenge,
+    cancelMatchmaking,
+    leaveMatch,
+    handleSelectTimeControl,
+  } = useGameActions({
+    user,
+    firebaseEnabled,
+    db,
+    displayName,
+    rating,
+    gameId,
+    setGameId,
+    gameData,
+    setGameData,
+    game,
+    setGame,
+    gameRef,
+    playerColor,
+    isOnline,
+    aiEnabled,
+    setAiEnabled,
+    setMoveHistory,
+    moveHistory,
+    setSelectedSquare,
+    setLegalMoves,
+    pendingPromotion,
+    setPendingPromotion,
+    setLastMove,
+    setMoveTimestamps,
+    moveTimestamps,
+    currentMoveStartTime,
+    setCurrentMoveStartTime,
+    selectedTimeControl,
+    setSelectedTimeControl,
+    localResult,
+    setLocalResult,
+    movePending,
+    setMovePending,
+    setMatchError,
+    setConnectionState,
+    setMatchStatus,
+    pushToast,
+    playMoveAnimation,
+    requestAiMove,
+    cancelAiSearch,
+    selectedSquare,
+    legalMoves,
+    incomingChallenge,
+    setActiveTab,
+    setupModalOpen,
+    setSetupModalOpen,
+    setupVariantRules,
+  });
 
   const handleEmailAuth = useCallback(async () => {
     if (!authEmail.trim() || !authPassword.trim()) {
@@ -452,50 +434,6 @@ export default function App() {
       setAuthError(error?.message || 'Authentication failed.');
     }
   }, [authEmail, authMode, authPassword, signInWithEmail, signUpWithEmail]);
-
-  // Apply dark/light theme to document root
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
-    localStorage.setItem('cr_dark', darkMode ? 'true' : 'false');
-  }, [darkMode]);
-
-  // Persist theme and 3D selections
-  useEffect(() => { localStorage.setItem('cr_theme', theme); }, [theme]);
-  useEffect(() => {
-    localStorage.setItem('cr_board_view', boardView);
-    localStorage.setItem('cr_3d', board3d ? 'true' : 'false');
-  }, [board3d, boardView]);
-  useEffect(() => {
-    localStorage.setItem('cr_board_corner_radius', String(boardCornerRadius));
-  }, [boardCornerRadius]);
-  useEffect(() => { localStorage.setItem('cr_live_voice_chat', liveVoiceChat ? 'true' : 'false'); }, [liveVoiceChat]);
-  useEffect(() => { localStorage.setItem('cr_seasonal_decorations', seasonalDecorations ? 'true' : 'false'); }, [seasonalDecorations]);
-  useEffect(() => {
-    localStorage.setItem('cr_seasonal_decoration_density', String(seasonalDecorationDensity));
-  }, [seasonalDecorationDensity]);
-
-  const customThemeVars = useMemo(() => {
-    if (!theme.startsWith('custom:')) return null;
-    const id = theme.slice(7);
-    const ct = customThemes.find(t => t.id === id);
-    return ct ? themeToVars(ct) : null;
-  }, [theme, customThemes]);
-
-  const saveCustomTheme = (themeData) => {
-    const newTheme = { ...themeData, id: Date.now().toString() };
-    const updated = [...customThemes, newTheme];
-    setCustomThemes(updated);
-    localStorage.setItem('cr_custom_themes', JSON.stringify(updated));
-    setTheme(`custom:${newTheme.id}`);
-    setShowThemeCreator(false);
-  };
-
-  const deleteCustomTheme = (id) => {
-    const updated = customThemes.filter(ct => ct.id !== id);
-    setCustomThemes(updated);
-    localStorage.setItem('cr_custom_themes', JSON.stringify(updated));
-    if (theme === `custom:${id}`) setTheme('classic');
-  };
 
   useEffect(() => {
     localResultRef.current = localResult;
@@ -544,10 +482,10 @@ export default function App() {
       if (!localResultRef.current && !isGameOver()) {
         if (whiteLeft <= 0) {
           setLocalResult({ winner: 'b', text: 'Black wins on time' });
-          setAiThinking(false);
+          cancelAiSearch();
         } else if (blackLeft <= 0) {
           setLocalResult({ winner: 'w', text: 'White wins on time' });
-          setAiThinking(false);
+          cancelAiSearch();
         }
       }
     };
@@ -556,7 +494,7 @@ export default function App() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnline, aiEnabled, selectedTimeControl, moveTimestamps, currentMoveStartTime, game, localResult]);
+  }, [cancelAiSearch, isOnline, aiEnabled, selectedTimeControl, moveTimestamps, currentMoveStartTime, game, localResult]);
 
   // Unify clock state for the UI
   useEffect(() => {
@@ -587,1121 +525,6 @@ export default function App() {
       return false;
     }
   }, [game]);
-
-  // ── Firebase listeners ──
-  useEffect(() => {
-    if (!gameId) return undefined;
-    hasLoadedOnlineGameRef.current = false;
-    const gameDocRef = doc(db, GAMES_COLLECTION, gameId);
-    const unsub = onSnapshot(gameDocRef, (snap) => {
-      lastSnapshotAtRef.current = Date.now();
-      setConnectionState('live');
-      if (!snap.exists()) {
-        setGameId(null);
-        setGameData(null);
-        setMatchStatus('idle');
-        return;
-      }
-      const data = { id: snap.id, ...snap.data() };
-      setGameData(data);
-      if (data.fen) {
-        if (hasLoadedOnlineGameRef.current && data.lastMove) {
-          const snapshotMoveKey = `${data.lastMove.from}-${data.lastMove.to}-${data.lastMove.san || ''}`;
-          if (snapshotMoveKey !== lastAnimatedMoveRef.current) {
-            const actor =
-              data.lastMove.by === user?.uid ? 'self' :
-              data.lastMove.by?.startsWith?.('bot_') ? 'ai' : 'opponent';
-            playMoveAnimation(gameRef.current, data.lastMove, actor);
-          }
-        }
-        setGame(new KnightJumpChess(data.fen));
-        hasLoadedOnlineGameRef.current = true;
-      }
-      if (data.lastMove) {
-        setLastMove({ from: data.lastMove.from, to: data.lastMove.to });
-      }
-      setMoveHistory(data.moveHistory || []);
-      setSelectedSquare(null);
-      setLegalMoves([]);
-      setMatchStatus(data.status || 'active');
-    });
-    return () => unsub();
-  }, [gameId, playMoveAnimation, user?.uid]);
-
-  useEffect(() => {
-    // authReady guards against the brief window where user is null while Firebase
-    // is still resolving the session — don't evict the persisted gameId prematurely.
-    if (authReady && !user) {
-      setGameId(null);
-      setGameData(null);
-      setMatchStatus('idle');
-      setMatchError('');
-    }
-  }, [authReady, user]);
-
-  // ── Unread DM badge ──
-  useEffect(() => {
-    if (!user || !firebaseEnabled || !db) { setUnreadDmCount(0); return; }
-    const q = query(collection(db, 'dms'), where('participants', 'array-contains', user.uid));
-    return onSnapshot(q, (snap) => {
-      let count = 0;
-      snap.docs.forEach((d) => {
-        const data = d.data();
-        const lastMsg = data.lastMessageAt;
-        const lastRead = data[`lastReadAt_${user.uid}`];
-        if (lastMsg && (!lastRead || lastMsg.toMillis() > lastRead.toMillis())) count++;
-      });
-      setUnreadDmCount(count);
-    });
-  }, [user]);
-
-  // ── Incoming game challenges ──
-  useEffect(() => {
-    if (!user || !firebaseEnabled || !db) return;
-    const q = query(
-      collection(db, 'game_challenges'),
-      where('to', '==', user.uid),
-      where('status', '==', 'pending')
-    );
-    return onSnapshot(q, (snap) => {
-      setIncomingChallenge(snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() });
-    });
-  }, [user]);
-
-  useEffect(() => {
-    if (!user || gameId) {
-      setWaitingGames([]);
-      return undefined;
-    }
-    const gamesRef = collection(db, GAMES_COLLECTION);
-    const waitingQuery = query(
-      gamesRef,
-      where('status', '==', 'waiting'),
-      where('rule', '==', RULE_ID),
-      limit(20)
-    );
-    const unsub = onSnapshot(waitingQuery, (snapshot) => {
-      const games = snapshot.docs
-        .map((docSnap) => ({
-          id: docSnap.id,
-          host: docSnap.data().whiteName || 'Anonymous',
-          createdAt: docSnap.data().createdAt?.toDate?.() || null,
-        }))
-        .filter((g) => g.id !== gameId)
-        .sort((a, b) => (b.createdAt - a.createdAt));
-      setWaitingGames(games);
-    });
-    return () => unsub();
-  }, [user, gameId]);
-
-  // ── AI Web Worker lifecycle ──
-  useEffect(() => {
-    const worker = new AiWorker();
-    aiWorkerRef.current = worker;
-
-    worker.onmessage = (e) => {
-      const msg = e.data;
-      if (msg.type === 'result') {
-        if (isBotOnlineGameRef.current) {
-          // Bot online game: queue the move for Firestore submission
-          setPendingBotMove(msg);
-          setAiThinking(false);
-          return;
-        }
-        if (localResultRef.current) {
-          setAiThinking(false);
-          return;
-        }
-        // Apply the AI move
-        setGame((prevGame) => {
-          const gameCopy = new KnightJumpChess(prevGame.fen());
-          const aiMoveObj = gameCopy
-            .moves({ verbose: true })
-            .find((m) => m.from === msg.from && m.to === msg.to &&
-              (!msg.promotion || m.promotion === msg.promotion));
-
-          if (aiMoveObj) {
-            playMoveAnimation(prevGame, aiMoveObj, 'ai');
-            gameCopy.move(aiMoveObj);
-          } else {
-            // Fallback: try direct move
-            playMoveAnimation(prevGame, msg, 'ai');
-            const result = gameCopy.move({ from: msg.from, to: msg.to, promotion: msg.promotion || 'q' });
-            if (!result) {
-              console.error('AI returned invalid move:', msg);
-              setAiError(`AI returned invalid move: ${msg.from}${msg.to}`);
-              setAiThinking(false);
-              return prevGame;
-            }
-          }
-
-          setMoveHistory((prev) => [...prev, msg.san || `${msg.from}${msg.to}`]);
-          setLastMove({ from: msg.from, to: msg.to });
-
-          // Track AI move time
-          const aiMoveTime = (msg.timeMs || 0) / 1000;
-          setMoveTimestamps((prev) => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last) last.black += aiMoveTime;
-            return updated;
-          });
-          setCurrentMoveStartTime(Date.now());
-
-          return new KnightJumpChess(gameCopy.fen());
-        });
-        setAiThinking(false);
-      } else if (msg.type === 'error') {
-        console.error('AI worker error:', msg.message);
-        setAiError(msg.message);
-        setAiThinking(false);
-      }
-    };
-
-    worker.onerror = (err) => {
-      console.error('AI worker crashed:', err);
-      setAiError('AI engine crashed');
-      setAiThinking(false);
-    };
-
-    return () => {
-      worker.terminate();
-      aiWorkerRef.current = null;
-    };
-  }, [playMoveAnimation]);
-
-  const requestAiMove = useCallback((fen, _history, _timestamps, forceDifficulty) => {
-    if (!aiWorkerRef.current) return;
-    setAiThinking(true);
-    setAiError('');
-    const requestId = ++aiRequestIdRef.current;
-    lastAiFenRef.current = fen;
-    aiWorkerRef.current.postMessage({
-      type: 'search',
-      fen,
-      difficulty: forceDifficulty ?? aiDifficulty,
-      id: requestId,
-    });
-  }, [aiDifficulty]);
-
-  // ── Sync bot-online flag for AI worker callback ──
-  useEffect(() => {
-    isBotOnlineGameRef.current = isOnline && gameData?.blackId?.startsWith('bot_');
-  }, [isOnline, gameData?.blackId]);
-
-  // ── Auto-add bot opponent after 1 minute of waiting ──
-  const addBotOpponent = useCallback(async () => {
-    if (!gameId || !user || !db) return;
-    try {
-      // Pick a bot seeded by gameId so each game gets a different one
-      const seed = gameId.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0);
-      const bot = BOT_POOL[Math.abs(seed) % BOT_POOL.length];
-      const botRef = doc(db, 'users', bot.uid);
-      const botSnap = await getDoc(botRef);
-      let botRating = 1200;
-      if (!botSnap.exists()) {
-        await setDoc(botRef, {
-          uid: bot.uid,
-          displayName: bot.name,
-          isBot: true,
-          rating: 1200,
-          wins: 0,
-          losses: 0,
-          draws: 0,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      } else {
-        const botData = botSnap.data();
-        botRating = botData.rating ?? 1200;
-        // Ensure displayName is always set (fixes any orphan documents)
-        if (!botData.displayName) {
-          await setDoc(botRef, { displayName: bot.name, uid: bot.uid, isBot: true, updatedAt: serverTimestamp() }, { merge: true });
-        }
-      }
-
-      const gameRef = doc(db, GAMES_COLLECTION, gameId);
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(gameRef);
-        if (!snap.exists()) return;
-        const data = snap.data();
-        if (data.whiteId !== user.uid) return;
-        if (data.status !== 'waiting' || data.blackId !== null) return;
-        tx.update(gameRef, {
-          blackId: bot.uid,
-          blackName: bot.name,
-          blackRating: botRating,
-          blackReady: true,
-          whiteReady: true,
-          status: 'active',
-          startedAt: serverTimestamp(),
-          lastMoveAt: serverTimestamp(),
-          whiteTimeLeft: data.timeControl ?? DEFAULT_TIME_CONTROL,
-          blackTimeLeft: data.timeControl ?? DEFAULT_TIME_CONTROL,
-          updatedAt: serverTimestamp()
-        });
-      });
-    } catch (error) {
-      console.error('Failed to add bot opponent:', error);
-    }
-  }, [gameId, user]);
-
-  useEffect(() => {
-    if (!isOnline || !gameData || !user) return;
-    if (gameData.status !== 'waiting') return;
-    if (gameData.whiteId !== user.uid) return;
-    if (gameData.blackId !== null) return;
-    const createdMs = gameData.createdAt?.toMillis?.();
-    if (!createdMs) return;
-    const delay = Math.max(0, 60000 - (Date.now() - createdMs));
-    const timer = setTimeout(addBotOpponent, delay);
-    return () => clearTimeout(timer);
-  }, [isOnline, gameData, user, addBotOpponent]);
-
-  // ── Trigger AI move when it's the bot's turn in an online bot game ──
-  useEffect(() => {
-    if (!isOnline || !gameData || gameData.status !== 'active') return;
-    if (!gameData.blackId?.startsWith('bot_')) return;
-    if (!gameData.fen) return;
-    const turn = gameData.fen.split(' ')[1];
-    if (turn !== 'b') return;
-    if (botMovePendingRef.current) return;
-    botMovePendingRef.current = true;
-    requestAiMove(gameData.fen, [], [], 'hard');
-  }, [isOnline, gameData, requestAiMove]);
-
-  // ── Game actions ──
-  const resetPractice = useCallback(() => {
-    const newGame = createNewGame();
-    setGame(newGame);
-    setMoveHistory([]);
-    setSelectedSquare(null);
-    setLegalMoves([]);
-    setPendingPromotion(null);
-    setLastMove(null);
-    setMoveTimestamps([{ white: 0, black: 0 }]);
-    setCurrentMoveStartTime(Date.now());
-    setLocalResult(null);
-    setMoveAnimation(null);
-    lastAnimatedMoveRef.current = null;
-  }, []);
-
-  const closeSetupModal = () => setSetupModalOpen(false);
-
-  const handleStartPracticeFromSetup = () => {
-    setAiEnabled(false);
-    resetPractice();
-    setSetupModalOpen(false);
-    navigateToPage('game');
-  };
-
-  const handleStartAiFromSetup = () => {
-    setAiEnabled(true);
-    resetPractice();
-    setSetupModalOpen(false);
-    navigateToPage('game');
-  };
-
-  const handleStartOnlineFromSetup = async () => {
-    if (!user) {
-      setSetupModalOpen(false);
-      navigateToPage('signin');
-      return;
-    }
-    if (isOnline) {
-      setSetupModalOpen(false);
-      return;
-    }
-    setAiEnabled(false);
-    resetPractice();
-    setSetupModalOpen(false);
-    navigateToPage('game');
-    await startMatchmaking();
-  };
-
-  const handleSquareClick = (square) => {
-    if (pendingPromotion) return;
-    if (isOnline && playerColor !== game.turn()) return;
-    if (aiEnabled && !isOnline && game.turn() === 'b') return; // block moving AI's pieces
-
-    if (selectedSquare === null) {
-      const piecesOnSquare = game.get(square);
-      if (piecesOnSquare && piecesOnSquare.color === game.turn()) {
-        setSelectedSquare(square);
-        const moves = game
-          .moves({ square, verbose: true })
-          .map((m) => m.to);
-        setLegalMoves(moves);
-      }
-      return;
-    }
-
-    if (selectedSquare === square) {
-      setSelectedSquare(null);
-      setLegalMoves([]);
-      return;
-    }
-
-    if (legalMoves.includes(square)) {
-      const candidateMoves = game
-        .moves({ square: selectedSquare, verbose: true })
-        .filter((m) => m.to === square);
-
-      const promotionMoves = candidateMoves.filter((m) => m.promotion);
-      if (promotionMoves.length > 1) {
-        setPendingPromotion({
-          from: selectedSquare,
-          to: square,
-          color: promotionMoves[0].color,
-          moves: promotionMoves,
-        });
-        return;
-      }
-
-      const moveObj = candidateMoves[0];
-
-      if (!moveObj) {
-        setSelectedSquare(null);
-        setLegalMoves([]);
-        return;
-      }
-
-      if (isOnline && gameId) {
-        handleOnlineMove(moveObj);
-      } else {
-        handleLocalMove(moveObj);
-      }
-
-      setSelectedSquare(null);
-      setLegalMoves([]);
-      setPendingPromotion(null);
-    } else {
-      const piecesOnSquare = game.get(square);
-      if (piecesOnSquare && piecesOnSquare.color === game.turn()) {
-        setSelectedSquare(square);
-        const moves = game
-          .moves({ square, verbose: true })
-          .map((m) => m.to);
-        setLegalMoves(moves);
-      } else {
-        setSelectedSquare(null);
-        setLegalMoves([]);
-      }
-    }
-  };
-
-  const handleLocalMove = async (moveObj) => {
-    const gameCopy = new KnightJumpChess(game.fen());
-    playMoveAnimation(game, moveObj, 'self');
-    gameCopy.move(moveObj);
-    setGame(gameCopy);
-    const newHistory = [...moveHistory, moveObj.san];
-    setMoveHistory(newHistory);
-    setLastMove({ from: moveObj.from, to: moveObj.to });
-
-    // Track move time
-    const moveEndTime = Date.now();
-    const moveTime = (moveEndTime - currentMoveStartTime) / 1000;
-    const currentTurn = game.turn();
-    
-    const newTimestamps = [...moveTimestamps];
-    const lastTimestamp = newTimestamps[newTimestamps.length - 1];
-    if (currentTurn === 'w') {
-      lastTimestamp.white += moveTime;
-    } else {
-      lastTimestamp.black += moveTime;
-    }
-    setMoveTimestamps(newTimestamps);
-    setCurrentMoveStartTime(moveEndTime);
-
-    if (aiEnabled && !isOnline) {
-      requestAiMove(gameCopy.fen(), newHistory, newTimestamps);
-    }
-  };
-
-  const handleOnlineMove = async (moveObj) => {
-    if (!gameId || !gameData || movePending || !user) return;
-    const expectedMoveSeq = getMoveSeq(gameData);
-    setMovePending(true);
-    setMatchError('');
-    setConnectionState((current) => (current === 'offline' ? current : 'connecting'));
-    try {
-      if (moveApiEnabled) {
-        try {
-          let idToken = null;
-          try {
-            idToken = await user.getIdToken?.();
-          } catch {
-            idToken = null;
-          }
-          const apiResult = await submitAuthoritativeMove({
-            gameId,
-            from: moveObj.from,
-            to: moveObj.to,
-            promotion: moveObj.promotion || null,
-            expectedMoveSeq,
-            idToken,
-            idempotencyKey: `${gameId}:${expectedMoveSeq}:${moveObj.from}:${moveObj.to}:${moveObj.promotion || ''}`,
-          });
-          if (apiResult?.ok) {
-            // Authoritative backend accepted move; Firestore listener will apply the update.
-            return;
-          }
-        } catch (apiError) {
-          if (moveApiStrict || !['NOT_CONFIGURED', 'SERVICE_UNAVAILABLE'].includes(apiError?.code)) {
-            throw apiError;
-          }
-        }
-      }
-
-      const gameRef = doc(db, GAMES_COLLECTION, gameId);
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(gameRef);
-        if (!snap.exists()) throw new Error('Game not found');
-
-        const data = snap.data();
-        if (data.status !== 'active') throw new Error('Game is not active');
-        const currentMoveSeq = getMoveSeq(data);
-        if (currentMoveSeq !== expectedMoveSeq) {
-          throw new Error('RESYNC_REQUIRED');
-        }
-
-        const currentPlayerColor =
-          data.whiteId === user.uid ? 'w' : data.blackId === user.uid ? 'b' : null;
-        if (!currentPlayerColor) throw new Error('You are not part of this game');
-
-        const gameCopy = new KnightJumpChess(data.fen);
-        if (gameCopy.turn() !== currentPlayerColor) throw new Error('Not your turn');
-
-        const moveResult = gameCopy.move({
-          from: moveObj.from,
-          to: moveObj.to,
-          promotion: moveObj.promotion || 'q'
-        });
-        if (!moveResult) throw new Error('Illegal move');
-        playMoveAnimation(new KnightJumpChess(data.fen), moveResult, 'self');
-
-        const newHistory = [
-          ...(data.moveHistory || []),
-          moveResult.san || moveObj.san || `${moveObj.from}-${moveObj.to}`
-        ];
-
-        // Deduct elapsed time from the player who just moved
-        let newWhiteTimeLeft = data.whiteTimeLeft ?? null;
-        let newBlackTimeLeft = data.blackTimeLeft ?? null;
-        if (data.timeControl && data.lastMoveAt) {
-          const elapsed = Math.max(0, (Date.now() - data.lastMoveAt.toMillis()) / 1000);
-          if (currentPlayerColor === 'w') newWhiteTimeLeft = Math.max(0, (data.whiteTimeLeft ?? data.timeControl) - elapsed);
-          else newBlackTimeLeft = Math.max(0, (data.blackTimeLeft ?? data.timeControl) - elapsed);
-        }
-
-        let nextStatus = 'active';
-        let result = null;
-        let winner = null;
-
-        // Timeout check
-        if (newWhiteTimeLeft !== null && newWhiteTimeLeft <= 0) {
-          nextStatus = 'completed'; winner = 'b'; result = 'Black wins on time';
-        } else if (newBlackTimeLeft !== null && newBlackTimeLeft <= 0) {
-          nextStatus = 'completed'; winner = 'w'; result = 'White wins on time';
-        }
-
-        const currentFen = gameCopy.fen().split(' ')[0];
-        const hasWhiteKing = currentFen.includes('K');
-        const hasBlackKing = currentFen.includes('k');
-
-        if (!hasWhiteKing) {
-          nextStatus = 'completed';
-          winner = 'b';
-          result = 'Black wins by king capture';
-        } else if (!hasBlackKing) {
-          nextStatus = 'completed';
-          winner = 'w';
-          result = 'White wins by king capture';
-        } else if (gameCopy.isCheckmateRider()) {
-          nextStatus = 'completed';
-          winner = gameCopy.turn() === 'w' ? 'b' : 'w';
-          result = `${formatTurn(winner)} wins by checkmate`;
-        } else if (gameCopy.isStalemateRider() || gameCopy.isDraw()) {
-          nextStatus = 'draw';
-          result = 'Draw';
-        }
-
-        let whiteRatingAfter = data.whiteRating ?? 1200;
-        let blackRatingAfter = data.blackRating ?? 1200;
-
-        if ((nextStatus === 'completed' || nextStatus === 'draw') && data.whiteId && data.blackId) {
-          const whiteScore = winner === 'w' ? 1 : winner === 'b' ? 0 : 0.5;
-          const blackScore = winner === 'b' ? 1 : winner === 'w' ? 0 : 0.5;
-
-          whiteRatingAfter = calculateElo(
-            data.whiteRating ?? 1200,
-            data.blackRating ?? 1200,
-            whiteScore
-          );
-          blackRatingAfter = calculateElo(
-            data.blackRating ?? 1200,
-            data.whiteRating ?? 1200,
-            blackScore
-          );
-
-          tx.set(
-            doc(db, 'users', data.whiteId),
-            {
-              uid: data.whiteId,
-              displayName: data.whiteName || 'White',
-              rating: whiteRatingAfter,
-              wins: increment(whiteScore === 1 ? 1 : 0),
-              losses: increment(whiteScore === 0 ? 1 : 0),
-              draws: increment(whiteScore === 0.5 ? 1 : 0),
-              updatedAt: serverTimestamp()
-            },
-            { merge: true }
-          );
-          tx.set(
-            doc(db, 'users', data.blackId),
-            {
-              uid: data.blackId,
-              displayName: data.blackName || 'Black',
-              rating: blackRatingAfter,
-              wins: increment(blackScore === 1 ? 1 : 0),
-              losses: increment(blackScore === 0 ? 1 : 0),
-              draws: increment(blackScore === 0.5 ? 1 : 0),
-              updatedAt: serverTimestamp()
-            },
-            { merge: true }
-          );
-        }
-
-        tx.update(gameRef, {
-          fen: gameCopy.fen(),
-          moveHistory: newHistory,
-          lastMove: {
-            from: moveObj.from,
-            to: moveObj.to,
-            san: moveResult.san || null,
-            by: user.uid,
-            seq: currentMoveSeq + 1
-          },
-          moveSeq: currentMoveSeq + 1,
-          status: nextStatus,
-          result,
-          winner,
-          whiteRatingAfter: nextStatus === 'active' ? null : whiteRatingAfter,
-          blackRatingAfter: nextStatus === 'active' ? null : blackRatingAfter,
-          whiteTimeLeft: newWhiteTimeLeft,
-          blackTimeLeft: newBlackTimeLeft,
-          lastMoveAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      });
-    } catch (error) {
-      console.error('Move error:', error);
-      if (error?.message === 'RESYNC_REQUIRED' || error?.code === 'RESYNC_REQUIRED') {
-        setConnectionState('reconnecting');
-        pushToast('Board was out of date. Resyncing latest position...', 'error');
-        setMatchError('Board changed on another client. Resyncing...');
-      } else if (error?.code === 'STALE_MOVE_SEQ') {
-        setConnectionState('reconnecting');
-        setMatchError('Position changed before your move landed. Resyncing...');
-      } else if (error?.code === 'SERVICE_UNAVAILABLE') {
-        setMatchError('Move service unavailable. Falling back to direct sync.');
-      } else {
-        setMatchError(error.message || 'Failed to make move');
-      }
-    } finally {
-      setMovePending(false);
-    }
-  };
-
-  const handlePromotionChoice = (promotion) => {
-    if (!pendingPromotion) return;
-    const moveObj = pendingPromotion.moves.find((move) => move.promotion === promotion) || pendingPromotion.moves[0];
-    if (!moveObj) {
-      setPendingPromotion(null);
-      return;
-    }
-
-    if (isOnline && gameId) {
-      handleOnlineMove(moveObj);
-    } else {
-      handleLocalMove(moveObj);
-    }
-
-    setSelectedSquare(null);
-    setLegalMoves([]);
-    setPendingPromotion(null);
-  };
-
-  const handleBotOnlineMove = useCallback(async (moveMsg) => {
-    if (!gameId || !db) return;
-    const gameRef = doc(db, GAMES_COLLECTION, gameId);
-    try {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(gameRef);
-        if (!snap.exists()) return;
-        const data = snap.data();
-        if (data.status !== 'active' || !data.blackId?.startsWith('bot_')) return;
-        const currentMoveSeq = getMoveSeq(data);
-        const gameCopy = new KnightJumpChess(data.fen);
-        if (gameCopy.turn() !== 'b') return;
-        const moveResult = gameCopy.move({ from: moveMsg.from, to: moveMsg.to, promotion: moveMsg.promotion || 'q' });
-        if (!moveResult) return;
-
-        const newHistory = [...(data.moveHistory || []), moveResult.san || `${moveMsg.from}-${moveMsg.to}`];
-
-        let newBlackTimeLeft = data.blackTimeLeft ?? null;
-        if (data.timeControl && data.lastMoveAt) {
-          const elapsed = Math.max(0, (Date.now() - data.lastMoveAt.toMillis()) / 1000);
-          newBlackTimeLeft = Math.max(0, (data.blackTimeLeft ?? data.timeControl) - elapsed);
-        }
-
-        let nextStatus = 'active';
-        let result = null;
-        let winner = null;
-
-        if (newBlackTimeLeft !== null && newBlackTimeLeft <= 0) {
-          nextStatus = 'completed'; winner = 'w'; result = 'White wins on time';
-        }
-
-        if (nextStatus === 'active') {
-          const fenBoard = gameCopy.fen().split(' ')[0];
-          if (!fenBoard.includes('K')) {
-            nextStatus = 'completed'; winner = 'b'; result = 'Black wins by king capture';
-          } else if (!fenBoard.includes('k')) {
-            nextStatus = 'completed'; winner = 'w'; result = 'White wins by king capture';
-          } else if (gameCopy.isCheckmateRider()) {
-            winner = gameCopy.turn() === 'w' ? 'b' : 'w';
-            nextStatus = 'completed';
-            result = `${formatTurn(winner)} wins by checkmate`;
-          } else if (gameCopy.isStalemateRider() || gameCopy.isDraw()) {
-            nextStatus = 'draw'; result = 'Draw';
-          }
-        }
-
-        let whiteRatingAfter = data.whiteRating ?? 1200;
-        let blackRatingAfter = data.blackRating ?? 1200;
-        if (nextStatus === 'completed' || nextStatus === 'draw') {
-          const whiteScore = winner === 'w' ? 1 : winner === 'b' ? 0 : 0.5;
-          const blackScore = 1 - whiteScore;
-          whiteRatingAfter = calculateElo(data.whiteRating ?? 1200, data.blackRating ?? 1200, whiteScore);
-          blackRatingAfter = calculateElo(data.blackRating ?? 1200, data.whiteRating ?? 1200, blackScore);
-          tx.set(doc(db, 'users', data.whiteId), {
-            rating: whiteRatingAfter,
-            wins: increment(whiteScore === 1 ? 1 : 0),
-            losses: increment(whiteScore === 0 ? 1 : 0),
-            draws: increment(whiteScore === 0.5 ? 1 : 0),
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-          tx.set(doc(db, 'users', data.blackId), {
-            rating: blackRatingAfter,
-            wins: increment(blackScore === 1 ? 1 : 0),
-            losses: increment(blackScore === 0 ? 1 : 0),
-            draws: increment(blackScore === 0.5 ? 1 : 0),
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-        }
-
-        tx.update(gameRef, {
-          fen: gameCopy.fen(),
-          moveHistory: newHistory,
-          lastMove: {
-            from: moveMsg.from,
-            to: moveMsg.to,
-            san: moveResult.san || null,
-            by: data.blackId,
-            seq: currentMoveSeq + 1
-          },
-          moveSeq: currentMoveSeq + 1,
-          status: nextStatus,
-          result,
-          winner,
-          whiteRatingAfter: nextStatus === 'active' ? null : whiteRatingAfter,
-          blackRatingAfter: nextStatus === 'active' ? null : blackRatingAfter,
-          blackTimeLeft: newBlackTimeLeft,
-          lastMoveAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      });
-    } catch (error) {
-      console.error('Bot move error:', error);
-    } finally {
-      botMovePendingRef.current = false;
-    }
-  }, [gameId]);
-
-  useEffect(() => {
-    if (!pendingBotMove) return;
-    setPendingBotMove(null);
-    handleBotOnlineMove(pendingBotMove);
-  }, [pendingBotMove, handleBotOnlineMove]);
-
-  const startMatchmaking = async () => {
-    if (!user) return;
-    setMatchError('');
-    setMatchStatus('searching');
-    const gamesRef = collection(db, GAMES_COLLECTION);
-    try {
-      const waitingQuery = query(
-        gamesRef,
-        where('status', '==', 'waiting'),
-        where('rule', '==', RULE_ID),
-        limit(20)
-      );
-      const waitingSnapshot = await getDocs(waitingQuery);
-      let bestDoc = null;
-      let bestDiff = Number.POSITIVE_INFINITY;
-      waitingSnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        if (data.whiteId === user.uid) return;
-        const hostRating = data.whiteRating ?? 1200;
-        const diff = Math.abs(hostRating - rating);
-        if (diff < bestDiff) {
-          bestDiff = diff;
-          bestDoc = docSnap;
-        }
-      });
-      if (bestDoc) {
-        await runTransaction(db, async (tx) => {
-          const snap = await tx.get(bestDoc.ref);
-          if (!snap.exists()) return;
-          const data = snap.data();
-          if (data.status !== 'waiting') return;
-          tx.update(bestDoc.ref, {
-            blackId: user.uid,
-            blackName: displayName,
-            blackRating: rating,
-            blackReady: false,
-            status: 'waiting',
-            updatedAt: serverTimestamp()
-          });
-        });
-        setGameId(bestDoc.id);
-        setMatchStatus('waiting');
-        return;
-      }
-      const newGame = new KnightJumpChess();
-      const docRef = await addDoc(gamesRef, {
-        rule: RULE_ID,
-        status: 'waiting',
-        whiteId: user.uid,
-        whiteName: displayName,
-        whiteRating: rating,
-        whiteReady: false,
-        blackReady: false,
-        blackId: null,
-        blackName: null,
-        blackRating: null,
-        fen: newGame.fen(),
-        moveHistory: [],
-        moveSeq: 0,
-        timeControl: selectedTimeControl,
-        whiteTimeLeft: selectedTimeControl,
-        blackTimeLeft: selectedTimeControl,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      setGameId(docRef.id);
-      setMatchStatus('waiting');
-    } catch (error) {
-      setMatchError(error.message || 'Matchmaking failed');
-      setMatchStatus('idle');
-    }
-  };
-
-  const createCustomGame = async () => {
-    if (!user) return;
-    setMatchError('');
-    try {
-      const newGame = new KnightJumpChess();
-      const docRef = await addDoc(collection(db, GAMES_COLLECTION), {
-        rule: RULE_ID,
-        status: 'waiting',
-        whiteId: user.uid,
-        whiteName: displayName,
-        whiteRating: rating,
-        whiteReady: false,
-        blackReady: false,
-        blackId: null,
-        blackName: null,
-        blackRating: null,
-        fen: newGame.fen(),
-        moveHistory: [],
-        moveSeq: 0,
-        timeControl: selectedTimeControl,
-        whiteTimeLeft: selectedTimeControl,
-        blackTimeLeft: selectedTimeControl,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      setGameId(docRef.id);
-      setMatchStatus('waiting');
-    } catch (error) {
-      setMatchError(error.message || 'Failed to create game');
-    }
-  };
-
-  const joinCustomGame = async (targetId) => {
-    if (!user) return;
-    const trimmed = targetId?.trim();
-    if (!trimmed) return;
-    setMatchError('');
-    try {
-      const gameRef = doc(db, GAMES_COLLECTION, trimmed);
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(gameRef);
-        if (!snap.exists()) throw new Error('Game not found');
-        const data = snap.data();
-        if (data.status !== 'waiting') throw new Error('Game is not waiting');
-        if (data.rule !== RULE_ID) throw new Error('Rule mismatch');
-        if (data.whiteId === user.uid) throw new Error('Cannot join your own game');
-        tx.update(gameRef, {
-          blackId: user.uid,
-          blackName: displayName,
-          blackRating: rating,
-          blackReady: false,
-          status: 'waiting',
-          updatedAt: serverTimestamp()
-        });
-      });
-      setGameId(trimmed);
-      setMatchStatus('waiting');
-      setJoinGameId('');
-    } catch (error) {
-      setMatchError(error.message || 'Failed to join game');
-    }
-  };
-
-  const toggleReady = async () => {
-    if (!user || !gameId || !gameData || !playerColor) return;
-    setMatchError('');
-    try {
-      const gameRef = doc(db, GAMES_COLLECTION, gameId);
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(gameRef);
-        if (!snap.exists()) throw new Error('Game not found');
-        const data = snap.data();
-        if (data.status !== 'waiting') throw new Error('Game already started');
-        const currentReady = playerColor === 'w' ? Boolean(data.whiteReady) : Boolean(data.blackReady);
-        const nextReady = !currentReady;
-        const update = playerColor === 'w' ? { whiteReady: nextReady } : { blackReady: nextReady };
-        const opponentReady = playerColor === 'w' ? Boolean(data.blackReady) : Boolean(data.whiteReady);
-        const bothReady = nextReady && opponentReady && data.blackId;
-        tx.update(gameRef, {
-          ...update,
-          status: bothReady ? 'active' : 'waiting',
-          startedAt: bothReady ? serverTimestamp() : data.startedAt || null,
-          lastMoveAt: bothReady ? serverTimestamp() : data.lastMoveAt || null,
-          whiteTimeLeft: bothReady ? (data.timeControl ?? DEFAULT_TIME_CONTROL) : (data.whiteTimeLeft ?? null),
-          blackTimeLeft: bothReady ? (data.timeControl ?? DEFAULT_TIME_CONTROL) : (data.blackTimeLeft ?? null),
-          updatedAt: serverTimestamp()
-        });
-      });
-    } catch (error) {
-      setMatchError(error.message || 'Failed to update ready status');
-    }
-  };
-
-  function calculateElo(playerRating, opponentRating, score, kFactor = 32) {
-    const expected = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 400));
-    return Math.round(playerRating + kFactor * (score - expected));
-  }
-
-  async function handleTimeout(losingColor) {
-    if (!gameId || !db || !gameData) return;
-    const gameRef = doc(db, GAMES_COLLECTION, gameId);
-    try {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(gameRef);
-        if (!snap.exists() || snap.data().status !== 'active') return;
-        const data = snap.data();
-        const winnerColor = losingColor === 'w' ? 'b' : 'w';
-        const whiteScore = winnerColor === 'w' ? 1 : 0;
-        const blackScore = 1 - whiteScore;
-        let whiteRatingAfter = data.whiteRating ?? 1200;
-        let blackRatingAfter = data.blackRating ?? 1200;
-        if (data.whiteId && data.blackId) {
-          whiteRatingAfter = calculateElo(data.whiteRating ?? 1200, data.blackRating ?? 1200, whiteScore);
-          blackRatingAfter = calculateElo(data.blackRating ?? 1200, data.whiteRating ?? 1200, blackScore);
-          tx.set(doc(db, 'users', data.whiteId), {
-            rating: whiteRatingAfter,
-            wins: increment(whiteScore === 1 ? 1 : 0),
-            losses: increment(whiteScore === 0 ? 1 : 0),
-            draws: increment(0),
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-          tx.set(doc(db, 'users', data.blackId), {
-            rating: blackRatingAfter,
-            wins: increment(blackScore === 1 ? 1 : 0),
-            losses: increment(blackScore === 0 ? 1 : 0),
-            draws: increment(0),
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-        }
-        tx.update(gameRef, {
-          status: 'completed',
-          winner: winnerColor,
-          result: `${formatTurn(winnerColor)} wins on time`,
-          whiteRatingAfter,
-          blackRatingAfter,
-          updatedAt: serverTimestamp()
-        });
-      });
-    } catch (err) {
-      console.error('Timeout error:', err);
-    }
-  }
-
-  const handleChallengeFriend = async (friendUid, friendName) => {
-    if (!user || !firebaseEnabled || !db) return;
-    setMatchError('');
-    try {
-      const newGame = new KnightJumpChess();
-      const gameRef = await addDoc(collection(db, GAMES_COLLECTION), {
-        rule: RULE_ID,
-        status: 'waiting',
-        whiteId: user.uid,
-        whiteName: displayName,
-        whiteRating: rating,
-        whiteReady: false,
-        blackReady: false,
-        blackId: null,
-        blackName: null,
-        blackRating: null,
-        fen: newGame.fen(),
-        moveHistory: [],
-        moveSeq: 0,
-        timeControl: selectedTimeControl,
-        whiteTimeLeft: selectedTimeControl,
-        blackTimeLeft: selectedTimeControl,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      await addDoc(collection(db, 'game_challenges'), {
-        from: user.uid,
-        fromName: displayName,
-        to: friendUid,
-        toName: friendName,
-        gameId: gameRef.id,
-        status: 'pending',
-        createdAt: serverTimestamp()
-      });
-      setGameId(gameRef.id);
-      setMatchStatus('waiting');
-      setActiveTab('play');
-    } catch (error) {
-      setMatchError(error.message || 'Failed to send challenge');
-    }
-  };
-
-  const acceptChallenge = async () => {
-    if (!incomingChallenge || !user || !db) return;
-    try {
-      await joinCustomGame(incomingChallenge.gameId);
-      await updateDoc(doc(db, 'game_challenges', incomingChallenge.id), { status: 'accepted' });
-    } catch (error) {
-      setMatchError(error.message || 'Failed to accept challenge');
-    }
-  };
-
-  const declineChallenge = async () => {
-    if (!incomingChallenge || !db) return;
-    await deleteDoc(doc(db, 'game_challenges', incomingChallenge.id));
-  };
-
-  const cancelMatchmaking = async () => {
-    if (!gameId || !gameData) return;
-    try {
-      if (gameData.status === 'waiting' && gameData.whiteId === user?.uid && !gameData.blackId) {
-        await deleteDoc(doc(db, GAMES_COLLECTION, gameId));
-      } else {
-        await updateDoc(doc(db, GAMES_COLLECTION, gameId), {
-          status: 'abandoned',
-          result: 'Match cancelled',
-          updatedAt: serverTimestamp()
-        });
-      }
-    } catch (error) {
-      setMatchError(error.message || 'Failed to cancel match');
-    } finally {
-      setGameId(null);
-      setGameData(null);
-      setMatchStatus('idle');
-    }
-  };
-
-  const leaveMatch = async () => {
-    if (!gameId || !gameData) return;
-    try {
-      // If the game is already over, don't overwrite it in Firestore, just return to lobby locally.
-      if (['completed', 'draw', 'abandoned'].includes(gameData.status)) {
-        return;
-      }
-
-      if (gameData.status === 'active') {
-        const gameRef = doc(db, GAMES_COLLECTION, gameId);
-        await runTransaction(db, async (tx) => {
-          const snap = await tx.get(gameRef);
-          if (!snap.exists()) return;
-          const data = snap.data();
-          if (data.status !== 'active') return;
-
-          const winnerColor = playerColor === 'w' ? 'b' : 'w';
-
-          let whiteRatingAfter = data.whiteRating ?? 1200;
-          let blackRatingAfter = data.blackRating ?? 1200;
-
-          if (data.whiteId && data.blackId) {
-            const whiteScore = winnerColor === 'w' ? 1 : 0;
-            const blackScore = winnerColor === 'b' ? 1 : 0;
-
-            whiteRatingAfter = calculateElo(data.whiteRating ?? 1200, data.blackRating ?? 1200, whiteScore);
-            blackRatingAfter = calculateElo(data.blackRating ?? 1200, data.whiteRating ?? 1200, blackScore);
-
-            const wScore = winnerColor === 'w' ? 1 : 0;
-            const bScore = winnerColor === 'b' ? 1 : 0;
-            tx.set(doc(db, 'users', data.whiteId), {
-              rating: whiteRatingAfter,
-              wins: increment(wScore === 1 ? 1 : 0),
-              losses: increment(wScore === 0 ? 1 : 0),
-              draws: increment(0),
-              updatedAt: serverTimestamp()
-            }, { merge: true });
-
-            tx.set(doc(db, 'users', data.blackId), {
-              rating: blackRatingAfter,
-              wins: increment(bScore === 1 ? 1 : 0),
-              losses: increment(bScore === 0 ? 1 : 0),
-              draws: increment(0),
-              updatedAt: serverTimestamp()
-            }, { merge: true });
-          }
-
-          tx.update(gameRef, {
-            status: 'abandoned',
-            winner: winnerColor,
-            result: `${formatTurn(winnerColor)} wins by forfeit`,
-            whiteRatingAfter,
-            blackRatingAfter,
-            updatedAt: serverTimestamp()
-          });
-        });
-      } else {
-        // Cancel pre-game waiting
-        await updateDoc(doc(db, GAMES_COLLECTION, gameId), {
-          status: 'abandoned',
-          result: 'Match cancelled',
-          updatedAt: serverTimestamp()
-        });
-      }
-    } catch (error) {
-      setMatchError(error.message || 'Failed to leave match');
-    } finally {
-      setGameId(null);
-      setGameData(null);
-      setMatchStatus('idle');
-    }
-  };
 
   const gameStatusText = () => {
     if (!isOnline) {
@@ -1801,17 +624,6 @@ export default function App() {
     clock: showPlayerClocks ? bottomClock : null,
   };
 
-  const handleSelectTimeControl = useCallback(async (seconds) => {
-    setSelectedTimeControl(seconds);
-    if (gameId && db) {
-      await updateDoc(doc(db, GAMES_COLLECTION, gameId), {
-        timeControl: seconds,
-        whiteTimeLeft: seconds,
-        blackTimeLeft: seconds,
-      });
-    }
-  }, [gameId]);
-
   const moveTable = renderMoveTable();
 
   const homePageProps = {
@@ -1831,6 +643,7 @@ export default function App() {
       if (user) setProfileModalUid(user.uid);
     },
     onHowItWorks: () => navigateToPage('learn'),
+    onOpenCommunityPuzzles: () => navigateToPage('puzzles'),
     onAcceptChallenge: async () => {
       await acceptChallenge();
       navigateToPage('game');
@@ -1851,6 +664,8 @@ export default function App() {
     onSubmit: handleEmailAuth,
     onGoogle: signInWithGoogle,
     onGuest: signInAnonymously,
+    canStartOnlineMatch,
+    onlineMatchHelpText,
   };
 
   const boardShellProps = {
@@ -1878,6 +693,7 @@ export default function App() {
     customThemeVars,
     boardCornerRadius,
     pieceStyle,
+    showEmpoweredMarks,
     lastMove,
     flipped,
     inCheck,
@@ -1896,7 +712,7 @@ export default function App() {
     matchError,
     aiThinking,
     aiError,
-    isBotOnlineGame: isBotOnlineGameRef.current,
+    isBotOnlineGame,
     gameData,
     gameId,
     user,
@@ -1914,6 +730,11 @@ export default function App() {
       aiDifficulty,
       aiDifficultyLevels: AI_DIFFICULTY_LEVELS,
       onSelectAiDifficulty: setAiDifficulty,
+      variantRules: setupVariantRules,
+      onToggleVariantRule: (rule) => setSetupVariantRules((current) => ({
+        ...current,
+        [rule]: !current[rule],
+      })),
       onStartPractice: handleStartPracticeFromSetup,
       onStartAi: handleStartAiFromSetup,
       onStartOnline: handleStartOnlineFromSetup,
@@ -1929,6 +750,8 @@ export default function App() {
       isOnline,
       user,
       firebaseEnabled,
+      canStartOnlineMatch,
+      onlineMatchHelpText,
       gameData,
       matchStatus,
       opponentName,
@@ -1985,6 +808,8 @@ export default function App() {
       saveCustomTheme,
       pieceStyle,
       setPieceStyle,
+      showEmpoweredMarks,
+      setShowEmpoweredMarks,
       boardView,
       setBoardView,
       boardCornerRadius,
@@ -2002,11 +827,11 @@ export default function App() {
       user,
       onPlayerClick: (player) => setProfileModalUid(player.id),
     },
-    socialProps: {
-      user,
-      displayName,
-      photoURL: profile?.photoURL || null,
-      onPlayerClick: (player) => setProfileModalUid(player.id),
+      socialProps: {
+        user,
+        displayName,
+        photoURL: profile?.photoURL || null,
+        onPlayerClick: (player) => setProfileModalUid(player.id),
       pendingDm,
       onPendingDmHandled: () => setPendingDm(null),
       onChallengeFriend: handleChallengeFriend,
@@ -2040,6 +865,8 @@ export default function App() {
           signInPageProps={signInPageProps}
           boardShellProps={boardShellProps}
           sidebarProps={sidebarProps}
+          currentUser={user}
+          currentUserName={displayName}
         />
       </RuntimeErrorBoundary>
 

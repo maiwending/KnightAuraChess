@@ -20,11 +20,21 @@ export default function FriendsSection({ currentUser, onOpenDm, onPlayerClick, o
     if (!firebaseEnabled || !db || !currentUser) return undefined;
     const outgoingQuery = query(collection(db, 'friend_requests'), where('from', '==', currentUser.uid));
     const incomingQuery = query(collection(db, 'friend_requests'), where('to', '==', currentUser.uid));
-    const unsubOutgoing = onSnapshot(outgoingQuery, (snap) =>
-      setOutgoing(snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })))
+    const unsubOutgoing = onSnapshot(
+      outgoingQuery,
+      (snap) => setOutgoing(snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))),
+      (error) => {
+        console.warn('Outgoing friend requests snapshot failed:', error?.message || error);
+        setOutgoing([]);
+      }
     );
-    const unsubIncoming = onSnapshot(incomingQuery, (snap) =>
-      setIncoming(snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })))
+    const unsubIncoming = onSnapshot(
+      incomingQuery,
+      (snap) => setIncoming(snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))),
+      (error) => {
+        console.warn('Incoming friend requests snapshot failed:', error?.message || error);
+        setIncoming([]);
+      }
     );
     return () => {
       unsubOutgoing();
@@ -46,11 +56,17 @@ export default function FriendsSection({ currentUser, onOpenDm, onPlayerClick, o
   useEffect(() => {
     if (!firebaseEnabled || !db || friends.length === 0) return undefined;
     const unsubs = friends.map((friend) =>
-      onSnapshot(doc(db, 'users', friend.uid), (snap) => {
-        if (snap.exists()) {
-          setPresence((previous) => ({ ...previous, [friend.uid]: Boolean(snap.data().online) }));
+      onSnapshot(
+        doc(db, 'users', friend.uid),
+        (snap) => {
+          if (snap.exists()) {
+            setPresence((previous) => ({ ...previous, [friend.uid]: Boolean(snap.data().online) }));
+          }
+        },
+        (error) => {
+          console.warn(`Friend presence snapshot failed for ${friend.uid}:`, error?.message || error);
         }
-      })
+      )
     );
     return () => unsubs.forEach((unsub) => unsub());
   }, [friendUidKey]); // eslint-disable-line react-hooks/exhaustive-deps

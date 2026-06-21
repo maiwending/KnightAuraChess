@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import wp from '../assets/chess/cburnett/Chess_plt45.svg';
 import wn from '../assets/chess/cburnett/Chess_nlt45.svg';
 import wb from '../assets/chess/cburnett/Chess_blt45.svg';
@@ -24,6 +24,9 @@ const pieceLetters = {
   b: { p: 'p', n: 'n', b: 'b', r: 'r', q: 'q', k: 'k' }
 };
 
+const filesBase = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+const ranksBase = ['8', '7', '6', '5', '4', '3', '2', '1'];
+
 export default function ChessBoard({
   game,
   selectedSquare,
@@ -33,6 +36,7 @@ export default function ChessBoard({
   customThemeVars,
   boardCornerRadius,
   pieceStyle,
+  showEmpoweredMarks = true,
   lastMove,
   flipped,
   inCheck,
@@ -45,52 +49,43 @@ export default function ChessBoard({
     onSquareClick(square);
   };
 
-  const filesBase = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-  const ranksBase = ['8', '7', '6', '5', '4', '3', '2', '1'];
-
   const files = flipped ? [...filesBase].reverse() : filesBase;
   const ranks = flipped ? [...ranksBase].reverse() : ranksBase;
 
   // Get knight aura squares when a piece is selected
-  const getKnightAuraSquares = () => {
+  const knightAuraSquares = useMemo(() => {
     if (!game || !selectedSquare) return new Set();
     const piece = game.get(selectedSquare);
     if (!piece) return new Set();
 
-    const color = piece.color;
-    const auraSquares = new Set();  
-    // Check which squares are near a friendly knight
+    const auraSquares = new Set();
     for (const r of ranksBase) {
       for (const f of filesBase) {
         const sq = `${f}${r}`;
-        if (game.isNearKnight(sq, color)) {
+        if (game.isNearKnight(sq, piece.color)) {
           auraSquares.add(sq);
         }
       }
     }
     return auraSquares;
-  };
+  }, [game, selectedSquare]);
 
-  const knightAuraSquares = getKnightAuraSquares();
-
-  const getAuraPieceSquares = () => {
+  const auraPieceSquares = useMemo(() => {
     if (!game) return new Set();
 
-    const auraPieceSquares = new Set();
+    const auraSquares = new Set();
     for (const r of ranksBase) {
       for (const f of filesBase) {
         const sq = `${f}${r}`;
         const piece = game.get(sq);
-        if (!piece || piece.type === 'n') continue;
+        if (!piece) continue;
         if (game.isNearKnight(sq, piece.color)) {
-          auraPieceSquares.add(sq);
+          auraSquares.add(sq);
         }
       }
     }
-    return auraPieceSquares;
-  };
-
-  const auraPieceSquares = getAuraPieceSquares();
+    return auraSquares;
+  }, [game]);
 
   // Find king in check
   const getCheckSquare = () => {
@@ -184,7 +179,7 @@ export default function ChessBoard({
                 const isLastTo = lastMove && lastMove.to === square;
                 const isCheck = checkSquare === square;
                 const isAura = knightAuraSquares.has(square) && selectedSquare;
-                const isAuraPiece = auraPieceSquares.has(square);
+                const isAuraPiece = showEmpoweredMarks && auraPieceSquares.has(square);
 
                 const squareClass = [
                   'square',

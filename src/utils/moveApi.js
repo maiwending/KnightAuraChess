@@ -29,11 +29,20 @@ export async function submitAuthoritativeMove({
     }),
   });
 
-  let data = null;
+  let data;
   try {
     data = await response.json();
-  } catch {
-    data = null;
+  } catch (error) {
+    if (!response.ok) {
+      const err = new Error(`Move API request failed with HTTP ${response.status}`);
+      err.code = `HTTP_${response.status}`;
+      throw err;
+    }
+
+    const err = new Error('Move API returned invalid JSON');
+    err.code = 'INVALID_JSON';
+    err.cause = error;
+    throw err;
   }
 
   if (!response.ok) {

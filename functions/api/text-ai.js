@@ -14,11 +14,12 @@ export async function onRequestOptions() {
 }
 
 export async function onRequestPost(context) {
+  const workersAi = context.env.AI;
   const upstreamUrl = context.env.TEXT_AI_UPSTREAM_URL;
-  if (!upstreamUrl) {
+  if (!workersAi && !upstreamUrl) {
     return json(
       {
-        error: 'TEXT_AI_UPSTREAM_URL is not configured.',
+        error: 'Configure an AI binding or TEXT_AI_UPSTREAM_URL.',
       },
       503
     );
@@ -32,6 +33,17 @@ export async function onRequestPost(context) {
   }
 
   try {
+    if (workersAi) {
+      const model = context.env.TEXT_AI_MODEL || '@cf/meta/llama-3-8b-instruct';
+      const result = await workersAi.run(model, {
+        messages: Array.isArray(payload.messages) ? payload.messages : [],
+        temperature: payload.temperature,
+        max_tokens: payload.max_tokens,
+        stream: false,
+      });
+      return json(result, 200);
+    }
+
     const headers = {
       'content-type': 'application/json',
     };
@@ -56,4 +68,3 @@ export async function onRequestPost(context) {
     return json({ error: 'Upstream Text AI request failed.' }, 503);
   }
 }
-

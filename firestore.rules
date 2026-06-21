@@ -101,6 +101,93 @@ service cloud.firestore {
         data.participants.hasAny([request.auth.uid]);
     }
 
+    function isPuzzleModerator() {
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        request.auth.token.puzzleModerator == true
+      );
+    }
+
+    function isValidPuzzleFollow(creatorId, followerId, data) {
+      return data.creatorId == creatorId &&
+        data.followerId == followerId &&
+        data.creatorName is string &&
+        data.creatorName.size() > 0 &&
+        data.creatorName.size() <= 80 &&
+        data.followerName is string &&
+        data.followerName.size() > 0 &&
+        data.followerName.size() <= 80 &&
+        data.followerEmail is string &&
+        data.followerEmail.size() > 3 &&
+        data.followerEmail.size() <= 160;
+    }
+
+    function isValidPuzzleRating(uid, data) {
+      return data.uid == uid &&
+        data.rating is int &&
+        data.rating >= 1 &&
+        data.rating <= 5;
+    }
+
+    function isValidPuzzleEmail(data) {
+      return data.creatorId == request.auth.uid &&
+        data.followerId is string &&
+        data.puzzleId is string &&
+        data.to is string &&
+        exists(/databases/$(database)/documents/puzzle_creators/$(data.creatorId)/followers/$(data.followerId)) &&
+        get(/databases/$(database)/documents/puzzle_creators/$(data.creatorId)/followers/$(data.followerId)).data.followerEmail == data.to &&
+        data.template is map &&
+        data.template.name == 'newCommunityPuzzle' &&
+        data.template.data is map &&
+        data.template.data.authorName is string &&
+        data.template.data.puzzleTitle is string &&
+        data.template.data.puzzleUrl is string;
+    }
+
+    function isValidCommunityPuzzle(data) {
+      return data.title is string &&
+        data.title.size() > 0 &&
+        data.title.size() <= 80 &&
+        data.description is string &&
+        data.description.size() <= 240 &&
+        data.fen is string &&
+        data.fen.size() > 0 &&
+        data.fen.size() <= 120 &&
+        data.solution is string &&
+        data.solution.size() > 0 &&
+        data.solution.size() <= 32 &&
+        (!('solutionMoves' in data) || (
+          data.solutionMoves is list &&
+          data.solutionMoves.size() > 0 &&
+          data.solutionMoves.size() <= 20
+        )) &&
+        data.authorId is string &&
+        data.authorName is string &&
+        data.authorName.size() > 0 &&
+        data.authorName.size() <= 80 &&
+        (!('hint' in data) || (data.hint is string && data.hint.size() <= 120)) &&
+        (!('tags' in data) || (data.tags is list && data.tags.size() <= 5)) &&
+        (!('featured' in data) || data.featured is bool) &&
+        (!('status' in data) || data.status in ['pending', 'approved', 'rejected']);
+    }
+
+    function isCreatorPuzzleUpdate() {
+      return resource.data.authorId == request.auth.uid &&
+        request.resource.data.authorId == resource.data.authorId &&
+        isValidCommunityPuzzle(request.resource.data) &&
+        (
+          ('featured' in resource.data && request.resource.data.featured == resource.data.featured) ||
+          (
+            !('featured' in resource.data) &&
+            (
+              !('featured' in request.resource.data) ||
+              request.resource.data.featured == false
+            )
+          )
+        ) &&
+        request.resource.data.status == 'pending';
+    }
+
     match /users/{uid} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && (
@@ -116,6 +203,12 @@ service cloud.firestore {
         ) ||
         isMatchStatUpdate()
       );
+
+      match /puzzle_following/{creatorId} {
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid) &&
+          isValidPuzzleFollow(creatorId, uid, request.resource.data);
+      }
     }
 
     match /usernames/{usernameKey} {
@@ -160,9 +253,53 @@ service cloud.firestore {
     }
 
     match /announcements/{announcementId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow read: if true;
+      allow create: if isSignedIn() && (
+        request.resource.data.authorId == request.auth.uid ||
+        (
+          request.resource.data.authorId is string &&
+          request.resource.data.authorId.matches('^bot_.*')
+        )
+      );
       allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+    }
+
+    match /community_puzzles/{puzzleId} {
+      allow read: if true;
+      allow create: if isSignedIn() &&
+        request.resource.data.authorId == request.auth.uid &&
+        isValidCommunityPuzzle(request.resource.data) &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.featured == false;
+      allow update: if (isPuzzleModerator() && isValidCommunityPuzzle(request.resource.data)) ||
+        isCreatorPuzzleUpdate();
+      allow delete: if isPuzzleModerator() ||
+        (isSignedIn() && resource.data.authorId == request.auth.uid);
+
+      match /ratings/{uid} {
+        allow read: if true;
+        allow create, update: if isSignedIn() &&
+          request.auth.uid == uid &&
+          isValidPuzzleRating(uid, request.resource.data);
+        allow delete: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
+    match /puzzle_creators/{creatorId}/followers/{followerId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == creatorId ||
+        request.auth.uid == followerId
+      );
+      allow create, update: if isSignedIn() &&
+        request.auth.uid == followerId &&
+        isValidPuzzleFollow(creatorId, followerId, request.resource.data);
+      allow delete: if isSignedIn() && request.auth.uid == followerId;
+    }
+
+    match /mail/{mailId} {
+      allow create: if isSignedIn() &&
+        isValidPuzzleEmail(request.resource.data);
+      allow read, update, delete: if false;
     }
 
     match /dms/{chatId} {
@@ -195,7 +332,14 @@ service cloud.firestore {
 
     match /game_challenges/{challengeId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.from == request.auth.uid;
+      allow create: if isSignedIn() && (
+        request.resource.data.from == request.auth.uid ||
+        (
+          request.resource.data.from is string &&
+          request.resource.data.from.matches('^bot_') &&
+          request.resource.data.to == request.auth.uid
+        )
+      );
       allow update: if isSignedIn() && resource.data.to == request.auth.uid;
       allow delete: if isSignedIn() && (
         resource.data.from == request.auth.uid ||

@@ -399,7 +399,7 @@ export async function onRequestPost(context) {
     if (!game.lastMoveAt) throw new ApiError('INVALID_STATE', 'Game clock is not initialized', 409);
     if (Date.now() - Date.parse(game.lastMoveAt) < 200) throw new ApiError('RATE_LIMITED', 'Move rate limited', 429);
 
-    const engine = new KnightJumpChess(game.fen);
+    const engine = new KnightJumpChess(game.fen, game.variantRules);
     if (engine.turn() !== playerColor) throw new ApiError('NOT_YOUR_TURN', 'Not your turn', 409);
     const legal = engine.move({
       from: payload.from,

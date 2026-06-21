@@ -49,5 +49,23 @@ describe('submitAuthoritativeMove', () => {
       })
     ).rejects.toMatchObject({ code: 'STALE_MOVE_SEQ' });
   });
-});
 
+  it('throws when the response body is not valid JSON', async () => {
+    fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError('Unexpected token < in JSON');
+      },
+    });
+
+    await expect(
+      submitAuthoritativeMove({
+        gameId: 'game-1',
+        from: 'e2',
+        to: 'e4',
+        expectedMoveSeq: 2,
+      })
+    ).rejects.toMatchObject({ code: 'INVALID_JSON' });
+  });
+});

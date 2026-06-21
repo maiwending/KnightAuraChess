@@ -132,9 +132,15 @@ export default function GameChat({
       orderBy('createdAt', 'asc'),
       limit(100)
     );
-    return onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+    return onSnapshot(
+      q,
+      (snap) => {
+        setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      },
+      (error) => {
+        console.warn('Game chat snapshot failed:', error?.message || error);
+      }
+    );
   }, [gameId]);
 
   useEffect(() => {
@@ -248,16 +254,22 @@ export default function GameChat({
   };
 
   const subscribeToCandidates = (candidatesRef, pc) => {
-    return onSnapshot(candidatesRef, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type !== 'added') return;
-        const key = `${candidatesRef.path}:${change.doc.id}`;
-        if (addedCandidateIdsRef.current.has(key)) return;
-        addedCandidateIdsRef.current.add(key);
-        const data = change.doc.data();
-        pc.addIceCandidate(new RTCIceCandidate(data)).catch(() => {});
-      });
-    });
+    return onSnapshot(
+      candidatesRef,
+      (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type !== 'added') return;
+          const key = `${candidatesRef.path}:${change.doc.id}`;
+          if (addedCandidateIdsRef.current.has(key)) return;
+          addedCandidateIdsRef.current.add(key);
+          const data = change.doc.data();
+          pc.addIceCandidate(new RTCIceCandidate(data)).catch(() => {});
+        });
+      },
+      (error) => {
+        console.warn('Voice candidate snapshot failed:', error?.message || error);
+      }
+    );
   };
 
   const startCallerSession = async () => {
@@ -303,11 +315,17 @@ export default function GameChat({
     });
 
     sessionUnsubsRef.current.push(
-      onSnapshot(sessionRef, async (snap) => {
-        const data = snap.data();
-        if (!data || !data.answer || pc.currentRemoteDescription) return;
-        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-      }),
+      onSnapshot(
+        sessionRef,
+        async (snap) => {
+          const data = snap.data();
+          if (!data || !data.answer || pc.currentRemoteDescription) return;
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        },
+        (error) => {
+          console.warn('Voice session snapshot failed:', error?.message || error);
+        }
+      ),
       subscribeToCandidates(calleeCandidatesRef, pc)
     );
 
@@ -381,33 +399,41 @@ export default function GameChat({
 
     const currentVoiceRef = doc(db, 'games', gameId, 'voice', 'current');
     activeCurrentVoiceUnsubRef.current?.();
-    activeCurrentVoiceUnsubRef.current = onSnapshot(currentVoiceRef, async (snap) => {
-      try {
-        if (!snap.exists()) {
-          if (playerColor === 'w' && !peerRef.current) {
-            await startCallerSession();
-          } else {
-            setVoiceStatus('Waiting for white to start voice...');
+    activeCurrentVoiceUnsubRef.current = onSnapshot(
+      currentVoiceRef,
+      async (snap) => {
+        try {
+          if (!snap.exists()) {
+            if (playerColor === 'w' && !peerRef.current) {
+              await startCallerSession();
+            } else {
+              setVoiceStatus('Waiting for white to start voice...');
+            }
+            return;
           }
-          return;
-        }
 
-        const data = snap.data();
-        if (!data?.sessionId) return;
-        if (data.callerUid === currentUser.uid) {
-          if (currentSessionIdRef.current !== data.sessionId && !peerRef.current) {
-            await startCallerSession();
+          const data = snap.data();
+          if (!data?.sessionId) return;
+          if (data.callerUid === currentUser.uid) {
+            if (currentSessionIdRef.current !== data.sessionId && !peerRef.current) {
+              await startCallerSession();
+            }
+            return;
           }
-          return;
-        }
 
-        await joinCallerSession(data.sessionId, data.callerUid);
-      } catch (error) {
-        console.error('Voice session error:', error);
+          await joinCallerSession(data.sessionId, data.callerUid);
+        } catch (error) {
+          console.error('Voice session error:', error);
+          setVoiceError(formatVoiceError(error));
+          setVoiceStatus('Voice unavailable');
+        }
+      },
+      (error) => {
+        console.warn('Voice presence snapshot failed:', error?.message || error);
         setVoiceError(formatVoiceError(error));
         setVoiceStatus('Voice unavailable');
       }
-    });
+    );
 
     return () => {
       activeCurrentVoiceUnsubRef.current?.();

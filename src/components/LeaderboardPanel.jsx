@@ -12,9 +12,16 @@ export default function LeaderboardPanel({ currentUser, onPlayerClick, embedded 
       orderBy('rating', 'desc'),
       fsLimit(100)
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setPlayers(snap.docs.map((d, i) => ({ rank: i + 1, id: d.id, ...d.data() })));
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setPlayers(snap.docs.map((d, i) => ({ rank: i + 1, id: d.id, ...d.data() })));
+      },
+      (error) => {
+        console.warn('Leaderboard snapshot failed:', error?.message || error);
+        setPlayers([]);
+      }
+    );
     return () => unsub();
   }, []);
 

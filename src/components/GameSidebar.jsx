@@ -325,6 +325,30 @@ export default function GameSidebar({
 
             <div className="settings-section">
               <div className="settings-section-heading">
+                <span className="settings-section-label">Empowered Marks</span>
+                <span className="settings-section-rail" aria-hidden="true" />
+              </div>
+              <div className="piece-set-grid">
+                <button
+                  className={`piece-set-btn${!settingsProps.showEmpoweredMarks ? ' active' : ''}`}
+                  onClick={() => settingsProps.setShowEmpoweredMarks(false)}
+                >
+                  <span className="piece-set-preview">○</span>
+                  Off
+                </button>
+                <button
+                  className={`piece-set-btn${settingsProps.showEmpoweredMarks ? ' active' : ''}`}
+                  onClick={() => settingsProps.setShowEmpoweredMarks(true)}
+                >
+                  <span className="piece-set-preview">✦</span>
+                  On
+                  <span className="piece-set-note">Show every empowered piece</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-section-heading">
                 <span className="settings-section-label">Corner Rounding</span>
                 <span className="settings-section-rail" aria-hidden="true" />
               </div>

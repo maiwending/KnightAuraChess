@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInAnonymously as firebaseSignInAnonymously,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut
 } from 'firebase/auth';
 import {
@@ -39,11 +41,29 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
-    const unsub = onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser);
-      setAuthReady(true);
-    });
-    return () => unsub();
+    let active = true;
+    let unsub = () => {};
+
+    (async () => {
+      try {
+        await getRedirectResult(auth);
+      } catch (error) {
+        if (error?.code && error.code !== 'auth/no-auth-event') {
+          console.warn('Google redirect sign-in failed:', error?.message || error);
+        }
+      }
+
+      if (!active) return;
+      unsub = onAuthStateChanged(auth, (nextUser) => {
+        setUser(nextUser);
+        setAuthReady(true);
+      });
+    })();
+
+    return () => {
+      active = false;
+      unsub();
+    };
   }, []);
 
   useEffect(() => {
@@ -121,15 +141,25 @@ export function AuthProvider({ children }) {
         window.addEventListener('beforeunload', handleUnload);
         unloadCleanup = () => window.removeEventListener('beforeunload', handleUnload);
 
-        unsubscribe = onSnapshot(profileRef, (docSnap) => {
-          if (!docSnap.exists()) {
-            setProfile(null);
+        unsubscribe = onSnapshot(
+          profileRef,
+          (docSnap) => {
+            if (!docSnap.exists()) {
+              setProfile(null);
+              setProfileReady(true);
+              return;
+            }
+            setProfile({ id: docSnap.id, ...docSnap.data() });
             setProfileReady(true);
-            return;
+          },
+          (error) => {
+            console.warn('Auth profile snapshot failed:', error?.message || error);
+            if (active) {
+              setProfile(null);
+              setProfileReady(true);
+            }
           }
-          setProfile({ id: docSnap.id, ...docSnap.data() });
-          setProfileReady(true);
-        });
+        );
       } catch (error) {
         console.warn('Auth profile setup failed:', error?.message || error);
         if (active) {
@@ -163,9 +193,23 @@ export function AuthProvider({ children }) {
       profileReady,
       rating: profile?.rating ?? 1200,
       displayName: profile?.displayName || getDisplayName(user),
-      signInWithGoogle: () => {
+      signInWithGoogle: async () => {
         if (!firebaseEnabled || !auth || !googleProvider) return firebaseNotReadyError();
-        return signInWithPopup(auth, googleProvider);
+        try {
+          return await signInWithPopup(auth, googleProvider);
+        } catch (error) {
+          const fallbackCodes = new Set([
+            'auth/popup-blocked',
+            'auth/popup-closed-by-user',
+            'auth/cancelled-popup-request',
+            'auth/operation-not-supported-in-this-environment',
+          ]);
+          if (fallbackCodes.has(error?.code)) {
+            await signInWithRedirect(auth, googleProvider);
+            return null;
+          }
+          throw error;
+        }
       },
       signInWithEmail: (email, password) => {
         if (!firebaseEnabled || !auth) return firebaseNotReadyError();
@@ -177,12 +221,22 @@ export function AuthProvider({ children }) {
       },
       signInAnonymously: () => {
         if (!firebaseEnabled || !auth) return firebaseNotReadyError();
-        return firebaseSignInAnonymously(auth);
+        return firebaseSignInAnonymously(auth).catch((error) => {
+          if (error?.code === 'auth/admin-restricted-operation') {
+            const friendly = new Error(
+              'Guest login is disabled in Firebase. Enable Anonymous sign-in in Authentication -> Sign-in method.'
+            );
+            friendly.code = error.code;
+            throw friendly;
+          }
+          throw error;
+        });
       },
       signOut: async () => {
         if (!firebaseEnabled || !auth) return Promise.resolve();
         if (user && db) {
-          await setDoc(doc(db, 'users', user.uid), { online: false, lastSeen: serverTimestamp() }, { merge: true }).catch(() => {});
+          // Best-effort presence update only. Sign-out should still succeed if Firestore is offline.
+          setDoc(doc(db, 'users', user.uid), { online: false, lastSeen: serverTimestamp() }, { merge: true }).catch(() => {});
         }
         return firebaseSignOut(auth);
       }

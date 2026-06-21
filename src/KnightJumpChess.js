@@ -1,4 +1,5 @@
 import { Chess } from 'chess.js';
+import { normalizeVariantRules } from './utils/variantRules.js';
 
 /**
  * Knight Jump Chess Variant
@@ -12,9 +13,21 @@ import { Chess } from 'chess.js';
  */
 
 class KnightJumpChess extends Chess {
-  constructor(fen) {
+  constructor(fen, variantRules) {
     super();
+    this._variantRules = normalizeVariantRules(variantRules);
+    this._knightAuraSquaresByColor = null;
     if (fen) this.load(fen, { skipValidation: true });
+  }
+
+  getVariantRules() {
+    return { ...this._variantRules };
+  }
+
+  setVariantRules(variantRules) {
+    this._variantRules = normalizeVariantRules(variantRules);
+    this._knightAuraSquaresByColor = null;
+    return this;
   }
 
   /**
@@ -45,9 +58,19 @@ class KnightJumpChess extends Chess {
   }
 
   /**
+   * Override load() to maintain hash consistency
+   */
+  load(fen, options) {
+    const result = super.load(fen, options);
+    this._resetInternalState();
+    return result;
+  }
+
+  /**
    * Reset internal state after manual board modifications
    */
   _resetInternalState() {
+    this._knightAuraSquaresByColor = null;
     try {
       // Recreate the game from current FEN to ensure all internal state is correct
       const currentFen = this.fen();
@@ -86,32 +109,45 @@ class KnightJumpChess extends Chess {
    * @returns {boolean}
    */
   isNearKnight(square, color) {
-    const knights = this.getKnightsOnBoard();
-    const targetFile = square.charCodeAt(0) - 97; // a=0, b=1, etc.
-    const targetRank = parseInt(square[1]) - 1;
+    if (this._getKnightAuraSquaresByColor(color).has(square)) return true;
+    if (!this._variantRules?.knightJacking) return false;
+    return this._getKnightAuraSquaresByColor(color === 'w' ? 'b' : 'w').has(square);
+  }
 
-    for (const knight of knights) {
-      // Only check knights of the same color
-      if (knight.color !== color) continue;
+  _getKnightAuraSquaresByColor(color) {
+    if (!this._knightAuraSquaresByColor) {
+      this._knightAuraSquaresByColor = {
+        w: new Set(),
+        b: new Set(),
+      };
 
-      const knightFile = knight.square.charCodeAt(0) - 97;
-      const knightRank = parseInt(knight.square[1]) - 1;
+      const board = this.board();
+      const adjacentOffsets = [
+        [0, 0],
+        [1, 0], [-1, 0], [0, 1], [0, -1],
+        [1, 1], [1, -1], [-1, 1], [-1, -1],
+        [2, 1], [2, -1], [-2, 1], [-2, -1],
+        [1, 2], [1, -2], [-1, 2], [-1, -2],
+      ];
 
-      const fileDiff = Math.abs(targetFile - knightFile);
-      const rankDiff = Math.abs(targetRank - knightRank);
+      for (let rank = 0; rank < 8; rank++) {
+        for (let file = 0; file < 8; file++) {
+          const piece = board[rank][file];
+          if (!piece || piece.type !== 'n') continue;
 
-      // Check if adjacent (including diagonally)
-      if (fileDiff <= 1 && rankDiff <= 1) {
-        return true;
-      }
+          const auraSquares = this._knightAuraSquaresByColor[piece.color];
 
-      // Check if knight's move away (L-shape: 2+1 or 1+2)
-      if ((fileDiff === 2 && rankDiff === 1) || (fileDiff === 1 && rankDiff === 2)) {
-        return true;
+          for (const [fileOffset, rankOffset] of adjacentOffsets) {
+            const auraFile = file + fileOffset;
+            const auraRank = rank + rankOffset;
+            if (auraFile < 0 || auraFile > 7 || auraRank < 0 || auraRank > 7) continue;
+            auraSquares.add(String.fromCharCode(97 + auraFile) + (8 - auraRank));
+          }
+        }
       }
     }
 
-    return false;
+    return this._knightAuraSquaresByColor[color];
   }
 
   /**
@@ -165,7 +201,7 @@ class KnightJumpChess extends Chess {
    * Unified safety check to avoid redundant instance creation
    */
   _isMoveSafe(move, moverColor, isJump) {
-    const copy = new KnightJumpChess(this.fen());
+    const copy = new KnightJumpChess(this.fen(), this._variantRules);
     if (isJump) {
       if (!copy.makeJumpMove(move)) return false;
     } else {
@@ -518,7 +554,11 @@ class KnightJumpChess extends Chess {
   move(move, options = {}) {
     if (typeof move === 'string') {
       try {
-        return super.move(move, options);
+        const result = super.move(move, options);
+        if (result) {
+          this._resetInternalState();
+        }
+        return result;
       } catch (_e) {
         return null;
       }
@@ -608,18 +648,19 @@ class KnightJumpChess extends Chess {
     const san = this._moveToSan(moveObj, moves);
     this._makeMove(moveObj);
     this._incPositionCount();
+    this._resetInternalState();
     return this._formatStandardMove(moveObj, moves, san);
   }
 
   _isStandardMoveSafe(moveObj, moverColor) {
-    const copy = new KnightJumpChess(this.fen());
+    const copy = new KnightJumpChess(this.fen(), this._variantRules);
     copy._makeMove(moveObj);
     copy._incPositionCount();
     return !copy.isKingCapturable(moverColor);
   }
 
   _isJumpMoveSafe(move, moverColor) {
-    const copy = new KnightJumpChess(this.fen());
+    const copy = new KnightJumpChess(this.fen(), this._variantRules);
     const result = copy.makeJumpMove(move);
     if (!result) return false;
     return !copy.isKingCapturable(moverColor);
@@ -667,7 +708,7 @@ class KnightJumpChess extends Chess {
     if (!kingSquare) return true;
 
     const opponent = color === 'w' ? 'b' : 'w';
-    const temp = new KnightJumpChess(this.fen());
+    const temp = new KnightJumpChess(this.fen(), this._variantRules);
     temp._turn = opponent;
     const opponentMoves = temp.movesUnsafe({ verbose: true });
     return opponentMoves.some(move => move.to === kingSquare);

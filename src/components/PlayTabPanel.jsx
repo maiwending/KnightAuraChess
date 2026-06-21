@@ -17,6 +17,8 @@ export default function PlayTabPanel({
   clockBlack,
   currentTurn,
   startMatchmaking,
+  canStartOnlineMatch,
+  onlineMatchHelpText,
   aiEnabled,
   onPlayAi,
   aiDifficulty,
@@ -117,9 +119,22 @@ export default function PlayTabPanel({
             </div>
           </div>
           {user ? (
-            <button className="btn btn-primary" onClick={startMatchmaking} style={{ width: '100%', marginBottom: 8 }}>
-              Find Online Match
-            </button>
+            <>
+              <button
+                className="btn btn-primary"
+                onClick={startMatchmaking}
+                disabled={!canStartOnlineMatch}
+                style={{ width: '100%', marginBottom: 8 }}
+                title={!canStartOnlineMatch ? onlineMatchHelpText : 'Find a match'}
+              >
+                Find Online Match
+              </button>
+              {!canStartOnlineMatch && onlineMatchHelpText && (
+                <p className="muted" style={{ marginBottom: 8 }}>
+                  {onlineMatchHelpText}
+                </p>
+              )}
+            </>
           ) : (
             <p className="muted" style={{ marginBottom: 8 }}>
               {firebaseEnabled

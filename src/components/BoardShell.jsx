@@ -31,6 +31,7 @@ export default function BoardShell({
   customThemeVars,
   boardCornerRadius,
   pieceStyle,
+  showEmpoweredMarks,
   lastMove,
   flipped,
   inCheck,
@@ -125,6 +126,7 @@ export default function BoardShell({
         customThemeVars={customThemeVars}
         boardCornerRadius={boardCornerRadius}
         pieceStyle={pieceStyle}
+        showEmpoweredMarks={showEmpoweredMarks}
         lastMove={lastMove}
         flipped={flipped}
         inCheck={inCheck}

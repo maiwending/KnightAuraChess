@@ -13,6 +13,28 @@ KnightAuraChess features a completely custom game engine that natively supports 
 *   **Google Auth & Guest Profiles:** Sign in with Google to save your Elo rating permanently, or play instantly as a Guest with a temporary generated profile.
 *   **Cloudflare Pages Optimization:** Lightning-fast PWA deployment structure.
 
+## 🧱 Project Structure
+
+At a high level, the app is split into a few clear layers:
+
+- [`src/main.jsx`](./src/main.jsx) bootstraps React and wraps the app with auth state.
+- [`src/App.jsx`](./src/App.jsx) is the main controller for routing, game state, AI, clocks, and online play.
+- [`src/components/`](./src/components) contains the visible UI: board shell, sidebar, pages, modals, and social panels.
+- [`src/KnightJumpChess.js`](./src/KnightJumpChess.js) implements the custom chess variant rules.
+- [`src/utils/`](./src/utils) holds Firebase, move API, text AI, and helper modules.
+- [`src/workers/`](./src/workers) contains background logic such as offline AI and online clock helpers.
+- [`functions/api/`](./functions/api) contains the serverless endpoints used by the frontend.
+- [`firestore.rules`](./firestore.rules) defines the Firestore security rules for online features.
+
+The runtime flow is:
+
+`main.jsx` -> `AuthProvider` -> `App.jsx` -> `AppPageRouter` -> board/sidebar/pages
+
+That split makes it easier to reason about where a bug belongs:
+- UI issues usually live in `src/components/`
+- rules issues usually live in `src/KnightJumpChess.js`
+- cloud/auth issues usually live in `src/utils/`, `src/contexts/`, or `functions/api/`
+
 ## 🎮 Variant Rules
 
 ### Core Mechanic: Knight Proximity Jumping
@@ -151,18 +173,22 @@ Browser chat now defaults to same-origin `/api/text-ai` on:
 Configure Cloudflare Function env vars:
 
 ```env
-TEXT_AI_UPSTREAM_URL="https://your-llm-endpoint.example/v1/chat/completions"
-TEXT_AI_UPSTREAM_AUTH_BEARER="optional_api_key_or_token"
+TEXT_AI_MODEL="@cf/meta/llama-3-8b-instruct"
 ```
 
 Route:
-- `functions/api/text-ai.js` proxies chat payloads to your upstream provider.
+- `functions/api/text-ai.js` can call Cloudflare Workers AI directly through an `AI` binding.
 
 For production builds you can still override explicitly:
 
 ```env
 VITE_TEXT_AI_BASE_URL="/api/text-ai"
 ```
+
+Cloudflare deployment notes:
+- Add an AI binding named `AI` in your Cloudflare Pages project or Worker.
+- In Cloudflare Pages, add the Workers AI binding from the dashboard and redeploy.
+- If you prefer a proxy to another hosted LLM instead of Workers AI, keep `TEXT_AI_UPSTREAM_URL` and `TEXT_AI_UPSTREAM_AUTH_BEARER` configured as a fallback.
 
 ## 🚀 Deployment (Cloudflare Pages)
 

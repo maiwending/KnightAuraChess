@@ -4,6 +4,8 @@ node_modules/
 # Build output
 dist/
 build/
+.wrangler/
+.firebase/
 
 # Editor directories and files
 .vscode/
@@ -30,3 +32,8 @@ yarn-error.log*
 # Testing
 coverage/
 .nyc_output/
+playwright-report/
+test-results/
+
+# Local env variants
+.env.*.local

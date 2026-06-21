@@ -19,6 +19,8 @@ const baseProps = {
   aiDifficulty: 'medium',
   aiDifficultyLevels: ['easy', 'medium', 'hard'],
   onSelectAiDifficulty: vi.fn(),
+  variantRules: { touchPiece: false, knightJacking: false },
+  onToggleVariantRule: vi.fn(),
   onStartPractice: vi.fn(),
   onStartAi: vi.fn(),
   onStartOnline: vi.fn(),
@@ -40,11 +42,13 @@ describe('PreGameSetupModal', () => {
     await user.click(screen.getByRole('button', { name: /3 min/i }));
     await user.click(screen.getByRole('button', { name: /realistic/i }));
     await user.click(screen.getByRole('button', { name: /^hard$/i }));
+    await user.click(screen.getByRole('button', { name: /touch piece/i }));
     await user.click(screen.getByRole('button', { name: /play vs ai/i }));
 
     expect(baseProps.onSelectTimeControl).toHaveBeenCalledWith(180);
     expect(baseProps.onSelectBoardView).toHaveBeenCalledWith('realistic');
     expect(baseProps.onSelectAiDifficulty).toHaveBeenCalledWith('hard');
+    expect(baseProps.onToggleVariantRule).toHaveBeenCalledWith('touchPiece');
     expect(baseProps.onStartAi).toHaveBeenCalledTimes(1);
   });
 });

@@ -53,7 +53,12 @@ function getGameSummary(game, userId) {
     return { result: 'Draw', className: 'draw', opponentName };
   }
 
-  const userWon = game.winner === userId;
+  const winnerValue = String(game.winner).toLowerCase();
+  const userColor = isWhite ? 'w' : 'b';
+  const userWon = game.winner === userId
+    || winnerValue === userColor
+    || (winnerValue === 'white' && userColor === 'w')
+    || (winnerValue === 'black' && userColor === 'b');
   return {
     result: userWon ? 'Win' : 'Loss',
     className: userWon ? 'win' : 'loss',
@@ -116,6 +121,7 @@ function SignedInHomePanel({
   onPlay,
   onOpenAccount,
   onHowItWorks,
+  onOpenCommunityPuzzles,
   onAcceptChallenge,
   onDeclineChallenge,
 }) {
@@ -206,6 +212,9 @@ function SignedInHomePanel({
             <button className="btn btn-ghost home-cta" onClick={onHowItWorks}>
               How It Works
             </button>
+            <button className="btn btn-ghost home-cta" onClick={onOpenCommunityPuzzles}>
+              Community Puzzles
+            </button>
           </div>
           <div className="home-hero-status">
             <span className={`home-dot ${firebaseEnabled ? 'is-on' : 'is-off'}`} aria-hidden="true" />
@@ -260,6 +269,7 @@ function SignedInHomePanel({
               <span>Open Play for local boards, AI, or matchmaking.</span>
             </div>
           )}
+
         </aside>
       </section>
 
@@ -351,6 +361,14 @@ function SignedInHomePanel({
               </span>
               <span className="home-lane__arrow" aria-hidden="true">→</span>
             </button>
+            <button type="button" className="home-lane" onClick={onOpenCommunityPuzzles} aria-label="Open community puzzles">
+              <span className="home-lane__mark">C</span>
+              <span className="home-lane__body">
+                <strong>Puzzles</strong>
+                <span>Browse and publish community-made challenge positions.</span>
+              </span>
+              <span className="home-lane__arrow" aria-hidden="true">→</span>
+            </button>
           </div>
         </article>
       </section>
@@ -373,6 +391,7 @@ function SignedOutHomePanel({
   onPlayGuest,
   onSignIn,
   onHowItWorks,
+  onOpenCommunityPuzzles,
   primaryActionLabel = 'Play as Guest',
 }) {
   return (
@@ -398,6 +417,9 @@ function SignedOutHomePanel({
             </button>
             <button className="btn btn-ghost home-cta" onClick={onHowItWorks}>
               How It Works
+            </button>
+            <button className="btn btn-ghost home-cta" onClick={onOpenCommunityPuzzles}>
+              Community Puzzles
             </button>
           </div>
           <div className="home-hero-status">
@@ -439,6 +461,7 @@ function SignedOutHomePanel({
         </div>
         <div className="home-outro__actions">
           <button className="btn btn-ghost" onClick={onHowItWorks}>Learn the rule</button>
+          <button className="btn btn-ghost" onClick={onOpenCommunityPuzzles}>Community Puzzles</button>
           <button className="btn btn-primary" onClick={onPlayGuest} aria-label="Start a guest board">
             Start a game →
           </button>
@@ -459,6 +482,7 @@ export default function HomePage({
   onSignIn,
   onOpenAccount,
   onHowItWorks,
+  onOpenCommunityPuzzles,
   onAcceptChallenge,
   onDeclineChallenge,
 }) {
@@ -474,6 +498,7 @@ export default function HomePage({
           onPlay={onPlayGuest}
           onOpenAccount={onOpenAccount}
           onHowItWorks={onHowItWorks}
+          onOpenCommunityPuzzles={onOpenCommunityPuzzles}
           onAcceptChallenge={onAcceptChallenge}
           onDeclineChallenge={onDeclineChallenge}
         />
@@ -483,6 +508,7 @@ export default function HomePage({
           onPlayGuest={onPlayGuest}
           onSignIn={onSignIn}
           onHowItWorks={onHowItWorks}
+          onOpenCommunityPuzzles={onOpenCommunityPuzzles}
           primaryActionLabel={authReady ? 'Play as Guest' : 'Play'}
         />
       )}

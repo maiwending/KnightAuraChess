@@ -37,6 +37,12 @@ const saveBotChatMessages = vi.fn();
 
 vi.mock('../../utils/textAi.js', () => ({
   DEFAULT_TEXT_AI_BASE_URL: '/api/text-ai',
+  getBotPersona: (uid, displayName) => ({
+    name: displayName,
+    age: 24,
+    birthYear: new Date().getFullYear() - 24,
+    style: 'flirty/casual',
+  }),
   isBotUid: (uid) => typeof uid === 'string' && uid.startsWith('bot_'),
   loadBotChatMessages: (...args) => loadBotChatMessages(...args),
   requestTextAiReply: (...args) => requestTextAiReply(...args),
@@ -73,6 +79,9 @@ describe('DmConversation', () => {
 
     expect(requestTextAiReply).toHaveBeenCalledWith({
       history: [{ role: 'user', content: 'hello' }],
+      personaName: 'Alex Kim',
+      personaAge: expect.any(Number),
+      personaStyle: expect.any(String),
     });
     expect(addDoc).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByText('Bonjour.')).toBeInTheDocument());

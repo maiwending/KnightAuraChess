@@ -27,7 +27,7 @@
   "license": "MIT",
   "dependencies": {
     "chess.js": "^1.4.0",
-    "firebase": "^12.12.0",
+    "firebase": "^12.14.0",
     "react": "^19.2.5",
     "react-chessboard": "^5.10.0",
     "react-dom": "^19.2.5",

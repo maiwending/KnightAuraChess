@@ -16,7 +16,7 @@ export default function AppHeader({
       <div className="brand">
         <img src="/riderchess.png" alt="Logo" className="brand-logo" />
         <div className="brand-text">
-          <h1>Knight-Aura Chess</h1>
+          <h1>knight-Aura Chess</h1>
           <p className="brand-subtitle">Chess reimagined — unleash the power of the horse</p>
         </div>
       </div>
