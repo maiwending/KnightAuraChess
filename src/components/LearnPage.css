@@ -193,7 +193,7 @@
 
 /* ─── Section heading ─── */
 .lp-section {
-  max-width: 1080px;
+  max-width: 1220px;
   margin: 0 auto;
   padding: 40px 28px;
 }
@@ -415,7 +415,7 @@
 /* ─── Scenario Player ─── */
 .lp-scenario {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(540px, 1.18fr) minmax(360px, 1fr);
   gap: 28px;
   align-items: stretch;
 }
@@ -437,7 +437,7 @@
 
 .lp-tabbar {
   display: flex;
-  gap: 3px;
+  gap: 6px;
   padding: 4px;
   background: var(--surface-inset);
   border-radius: var(--radius-md);
@@ -447,8 +447,8 @@
   scrollbar-width: thin;
 }
 .lp-tab {
-  flex: 1 0 max-content;
-  min-width: 118px;
+  flex: 1 1 0;
+  min-width: max-content;
   padding: 8px 12px;
   font-size: 0.76rem;
   font-weight: 600;
