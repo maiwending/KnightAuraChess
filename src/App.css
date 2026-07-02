@@ -178,23 +178,34 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
-  padding: 4px 6px;
-  margin: -4px -6px;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
   color: inherit;
   text-align: left;
-  cursor: pointer;
-  transition: background var(--transition-base), transform var(--transition-base);
 }
 
-.brand:hover {
+.brand-home-button {
+  display: inline-grid;
+  place-items: center;
+  padding: 4px;
+  margin: -4px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base),
+    transform var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.brand-home-button:hover {
   background: rgba(125, 196, 53, 0.08);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   transform: translateY(-1px);
 }
 
-.brand:focus-visible {
+.brand-home-button:focus-visible {
   outline: 2px solid var(--border-focus);
   outline-offset: 3px;
 }
@@ -230,7 +241,7 @@
   transition: box-shadow var(--transition-base);
 }
 
-.brand:hover .brand-logo {
+.brand-home-button:hover .brand-logo {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
@@ -5462,14 +5473,6 @@ textarea.select,
 .top-bar {
   min-height: 64px;
   padding-inline: clamp(16px, 2.2vw, 30px);
-}
-
-.brand {
-  border: 1px solid transparent;
-}
-
-.brand:hover {
-  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .brand-logo {

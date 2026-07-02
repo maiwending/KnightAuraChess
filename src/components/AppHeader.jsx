@@ -14,19 +14,21 @@ export default function AppHeader({
 }) {
   return (
     <header className="top-bar">
-      <button
-        type="button"
-        className="brand"
-        onClick={onHome}
-        aria-label="Go to home"
-        title="Home"
-      >
-        <img src="/riderchess.png" alt="Logo" className="brand-logo" />
+      <div className="brand">
+        <button
+          type="button"
+          className="brand-home-button"
+          onClick={onHome}
+          aria-label="Go to home"
+          title="Home"
+        >
+          <img src="/riderchess.png" alt="" className="brand-logo" />
+        </button>
         <div className="brand-text">
           <h1>knight-Aura Chess</h1>
           <p className="brand-subtitle">Chess reimagined — unleash the power of the horse</p>
         </div>
-      </button>
+      </div>
 
       <div className="auth-panel">
         {!authReady ? (
