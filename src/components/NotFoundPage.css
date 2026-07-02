@@ -92,7 +92,7 @@
 .nf-header__code,
 .nf-eyebrow,
 .nf-footer {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }

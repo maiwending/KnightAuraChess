@@ -1163,7 +1163,7 @@ export default function CommunityPuzzlesPage({
           <p className="cp-hero__lede">
             {publishOnly
               ? 'Build the position with the board, click the solution line, and save it to Firebase.'
-              : 'Every puzzle here is shared through the community sheet. Signed-in players can publish positions, and everyone can solve them.'}
+              : 'Every puzzle here is shared through Firebase. Signed-in players can publish positions, and everyone can solve them.'}
           </p>
           <div className="cp-hero__actions">
             {!publishOnly && <button className="btn btn-primary" onClick={() => setView('browse')}>Browse puzzles</button>}
