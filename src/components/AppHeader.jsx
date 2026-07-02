@@ -1,6 +1,19 @@
 import React from 'react';
 import { firebaseEnabled } from '../utils/firebase.js';
 
+const HEADER_TAGLINES = [
+  'Chess reimagined — unleash the power of the horse',
+  'Friendly knights, strange auras, sharper games',
+  'One rule twist. Everything else is chess.',
+  'Ride the board. Bend the line.',
+  'Classic chess with a knightly glow',
+  'Where every knight carries an aura',
+  'Jump one blocker. Change the whole position.',
+  'A tiny twist with royal consequences',
+];
+
+const HEADER_TAGLINE = HEADER_TAGLINES[Math.floor(Math.random() * HEADER_TAGLINES.length)];
+
 export default function AppHeader({
   authReady,
   user,
@@ -26,7 +39,7 @@ export default function AppHeader({
         </button>
         <div className="brand-text">
           <h1>knight-Aura Chess</h1>
-          <p className="brand-subtitle">Chess reimagined — unleash the power of the horse</p>
+          <p className="brand-subtitle">{HEADER_TAGLINE}</p>
         </div>
       </div>
 
