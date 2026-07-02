@@ -301,13 +301,26 @@ export function useGameActions({
 
   const handleTimeout = useCallback(async (losingColor) => {
     if (!gameId || !db || !gameData) return;
+    if (gameData.status !== 'active') return;
     const gameRefDoc = doc(db, GAMES_COLLECTION, gameId);
+    const winnerColor = losingColor === 'w' ? 'b' : 'w';
+    const result = `${winnerColor === 'w' ? 'White' : 'Black'} wins on time`;
+    setGameData((current) => {
+      if (!current || current.id !== gameId || current.status !== 'active') return current;
+      return {
+        ...current,
+        status: 'completed',
+        winner: winnerColor,
+        result,
+        whiteTimeLeft: losingColor === 'w' ? 0 : current.whiteTimeLeft,
+        blackTimeLeft: losingColor === 'b' ? 0 : current.blackTimeLeft,
+      };
+    });
     try {
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(gameRefDoc);
         if (!snap.exists() || snap.data().status !== 'active') return;
         const data = snap.data();
-        const winnerColor = losingColor === 'w' ? 'b' : 'w';
         const whiteScore = winnerColor === 'w' ? 1 : 0;
         const blackScore = 1 - whiteScore;
         let whiteRatingAfter = data.whiteRating ?? 1200;
@@ -333,16 +346,18 @@ export function useGameActions({
         tx.update(gameRefDoc, {
           status: 'completed',
           winner: winnerColor,
-          result: `${winnerColor === 'w' ? 'White' : 'Black'} wins on time`,
+          result,
           whiteRatingAfter,
           blackRatingAfter,
+          whiteTimeLeft: losingColor === 'w' ? 0 : data.whiteTimeLeft,
+          blackTimeLeft: losingColor === 'b' ? 0 : data.blackTimeLeft,
           updatedAt: serverTimestamp()
         });
       });
     } catch (err) {
       console.error('Timeout error:', err);
     }
-  }, [db, gameData, gameId]);
+  }, [db, gameData, gameId, setGameData]);
 
   const handleChallengeFriend = useCallback(async (friendUid, friendName) => {
     if (!user || !firebaseEnabled || !db) return;
@@ -836,6 +851,7 @@ export function useGameActions({
 
   const handleSquareClick = useCallback((square) => {
     if (pendingPromotion) return;
+    if (isOnline && gameData?.status !== 'active') return;
     if (isOnline && playerColor !== game.turn()) return;
     if (aiEnabled && !isOnline && game.turn() === 'b') return;
 
@@ -904,6 +920,7 @@ export function useGameActions({
   }, [
     aiEnabled,
     game,
+    gameData?.status,
     gameId,
     handleLocalMove,
     handleOnlineMove,

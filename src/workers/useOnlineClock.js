@@ -32,7 +32,7 @@ export function useOnlineClock(gameData, playerColor, onTimeout) {
       setClockWhite(wt);
       setClockBlack(bt);
 
-      if (!timeoutFiredRef.current && playerColor === turn) {
+      if (!timeoutFiredRef.current && playerColor) {
         if (turn === 'w' && wt <= 0) { timeoutFiredRef.current = true; onTimeout('w'); }
         if (turn === 'b' && bt <= 0) { timeoutFiredRef.current = true; onTimeout('b'); }
       }

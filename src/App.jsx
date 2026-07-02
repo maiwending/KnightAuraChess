@@ -549,6 +549,7 @@ export default function App() {
   };
 
   const isGameOver = () => {
+    if (isOnline && ['completed', 'draw', 'abandoned'].includes(gameData?.status)) return true;
     return localResult || game.getWinnerByKingCapture() || game.isCheckmateRider() || game.isStalemateRider();
   };
 
