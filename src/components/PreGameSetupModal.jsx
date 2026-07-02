@@ -18,9 +18,11 @@ export default function PreGameSetupModal({
   onStartAi,
   onStartOnline,
   onStartCustomGame,
+  challengeTarget,
   isOnline,
 }) {
   if (!isOpen) return null;
+  const isChallengeSetup = Boolean(challengeTarget);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -33,8 +35,12 @@ export default function PreGameSetupModal({
       >
         <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         <div className="setup-modal__content">
-          <h3>Game Setup</h3>
-          <p className="muted">Set your board and timer before starting.</p>
+          <h3>{isChallengeSetup ? `Challenge ${challengeTarget.name}` : 'Game Setup'}</h3>
+          <p className="muted">
+            {isChallengeSetup
+              ? 'Choose the same setup controls as + New, then send the challenge.'
+              : 'Set your board and timer before starting.'}
+          </p>
 
           <div className="setup-modal__section">
             <p className="play-section-label">Optional Rules</p>
@@ -126,7 +132,9 @@ export default function PreGameSetupModal({
             </button>
             {onStartCustomGame && (
               <button className="btn btn-primary" onClick={onStartCustomGame} disabled={!user}>
-                {user ? 'Create Game' : 'Sign In to Create'}
+                {user
+                  ? (isChallengeSetup ? 'Send Challenge' : 'Create Game')
+                  : (isChallengeSetup ? 'Sign In to Challenge' : 'Sign In to Create')}
               </button>
             )}
           </div>

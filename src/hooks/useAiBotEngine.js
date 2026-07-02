@@ -43,6 +43,7 @@ export function useAiBotEngine({
   const aiWorkerRef = useRef(null);
   const aiRequestIdRef = useRef(0);
   const botMovePendingRef = useRef(false);
+  const botRequestedFenRef = useRef(null);
 
   const cancelAiSearch = useCallback(() => {
     aiRequestIdRef.current += 1;
@@ -195,6 +196,7 @@ export function useAiBotEngine({
             await handleBotOnlineMove(msg);
           } finally {
             botMovePendingRef.current = false;
+            botRequestedFenRef.current = null;
             setAiThinking(false);
           }
           return;
@@ -248,6 +250,7 @@ export function useAiBotEngine({
       } else if (msg.type === 'error') {
         console.error('AI worker error:', msg.message);
         setAiError(msg.message);
+        botRequestedFenRef.current = null;
         setAiThinking(false);
       }
     };
@@ -255,6 +258,8 @@ export function useAiBotEngine({
     worker.onerror = (err) => {
       console.error('AI worker crashed:', err);
       setAiError('AI engine crashed');
+      botRequestedFenRef.current = null;
+      botMovePendingRef.current = false;
       setAiThinking(false);
     };
 
@@ -371,14 +376,21 @@ export function useAiBotEngine({
   }, [botPool, db, gameId, incomingChallenge, sendBotChallenge, user]);
 
   useEffect(() => {
-    if (!isBotOnlineGame || !gameData || gameData.status !== 'active') return;
+    if (!isBotOnlineGame || !gameData || gameData.status !== 'active') {
+      botRequestedFenRef.current = null;
+      return;
+    }
     if (!gameData.blackId?.startsWith('bot_')) return;
     if (!gameData.fen) return;
-    if (gameData.fen.split(' ')[1] !== 'b') return;
+    if (gameData.fen.split(' ')[1] !== 'b') {
+      botRequestedFenRef.current = null;
+      return;
+    }
     if (botMovePendingRef.current) return;
-    botMovePendingRef.current = true;
+    if (botRequestedFenRef.current === gameData.fen) return;
+    botRequestedFenRef.current = gameData.fen;
     if (!requestAiMove(gameData.fen, [], [], 'hard')) {
-      botMovePendingRef.current = false;
+      botRequestedFenRef.current = null;
     }
   }, [gameData, isBotOnlineGame, requestAiMove]);
 
