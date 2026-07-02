@@ -311,6 +311,7 @@ export default function App() {
     gameRef,
     lastAnimatedMoveRef,
     hasLoadedOnlineGameRef,
+    setupVariantRules,
   });
 
   const playerColor = useMemo(() => {

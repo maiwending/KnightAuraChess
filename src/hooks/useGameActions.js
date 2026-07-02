@@ -154,11 +154,13 @@ export function useGameActions({
         }
       });
       if (bestDoc) {
+        let joinedGameId = null;
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(bestDoc.ref);
           if (!snap.exists()) return;
           const data = snap.data();
           if (data.status !== 'waiting') return;
+          if ((data.variantKey || 'base') !== variantRulesKey(setupVariantRules)) return;
           tx.update(bestDoc.ref, {
             blackId: user.uid,
             blackName: displayName,
@@ -167,10 +169,13 @@ export function useGameActions({
             status: 'waiting',
             updatedAt: serverTimestamp()
           });
+          joinedGameId = bestDoc.id;
         });
-        setGameId(bestDoc.id);
-        setMatchStatus('waiting');
-        return;
+        if (joinedGameId) {
+          setGameId(joinedGameId);
+          setMatchStatus('waiting');
+          return;
+        }
       }
       const variantRules = normalizeVariantRules(setupVariantRules);
       const newGame = new KnightJumpChess(undefined, variantRules);
@@ -252,6 +257,9 @@ export function useGameActions({
         const data = snap.data();
         if (data.status !== 'waiting') throw new Error('Game is not waiting');
         if (data.rule !== RULE_ID) throw new Error('Rule mismatch');
+        if ((data.variantKey || 'base') !== variantRulesKey(setupVariantRules)) {
+          throw new Error('Rule options do not match your selected setup');
+        }
         if (data.whiteId === user.uid) throw new Error('Cannot join your own game');
         tx.update(gameRefDoc, {
           blackId: user.uid,
@@ -267,7 +275,7 @@ export function useGameActions({
     } catch (error) {
       setMatchError(error.message || 'Failed to join game');
     }
-  }, [db, displayName, rating, setGameId, setMatchError, setMatchStatus, user]);
+  }, [db, displayName, rating, setGameId, setMatchError, setMatchStatus, setupVariantRules, user]);
 
   const toggleReady = useCallback(async () => {
     if (!user || !gameId || !gameData || !playerColor) return;

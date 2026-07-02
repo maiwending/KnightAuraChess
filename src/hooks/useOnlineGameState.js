@@ -8,6 +8,7 @@ import {
   limit
 } from 'firebase/firestore';
 import KnightJumpChess from '../KnightJumpChess.js';
+import { variantRulesKey } from '../utils/variantRules.js';
 
 const GAMES_COLLECTION = 'games';
 const RULE_ID = 'chessrider';
@@ -28,6 +29,7 @@ export function useOnlineGameState({
   gameRef,
   lastAnimatedMoveRef,
   hasLoadedOnlineGameRef,
+  setupVariantRules,
 }) {
   const [gameData, setGameData] = useState(null);
   const [matchStatus, setMatchStatus] = useState('idle');
@@ -203,8 +205,10 @@ export function useOnlineGameState({
           .map((docSnap) => ({
             id: docSnap.id,
             host: docSnap.data().whiteName || 'Anonymous',
+            variantKey: docSnap.data().variantKey || 'base',
             createdAt: docSnap.data().createdAt?.toDate?.() || null,
           }))
+          .filter((g) => g.variantKey === variantRulesKey(setupVariantRules))
           .filter((g) => g.id !== gameId)
           .sort((a, b) => (b.createdAt - a.createdAt));
         setWaitingGames(games);
@@ -215,7 +219,7 @@ export function useOnlineGameState({
       }
     );
     return () => unsub();
-  }, [db, gameId, user]);
+  }, [db, gameId, setupVariantRules, user]);
 
   return {
     gameData,
