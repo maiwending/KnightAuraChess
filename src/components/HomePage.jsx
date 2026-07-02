@@ -8,20 +8,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../utils/firebase.js';
 
-const SIGNED_IN_HOME_HEADLINES = [
-  ['Pick up the board fast.', 'Live play is one click away.'],
-  ['Your next aura is waiting.', 'Start a fresh position.'],
-  ['Back to the battlefield.', 'The board remembers you.'],
-  ['Warm up the knights.', 'A live match is close.'],
-  ['Find the next jump.', 'One move can open the line.'],
-  ['The board is set.', 'Choose your next fight.'],
-  ['Ratings, rivals, and riders.', 'Ready when you are.'],
-  ['A knightly spark returns.', 'Play the next chapter.'],
-];
-
-const SIGNED_IN_HOME_HEADLINE =
-  SIGNED_IN_HOME_HEADLINES[Math.floor(Math.random() * SIGNED_IN_HOME_HEADLINES.length)];
-
 function formatRecentDate(timestamp) {
   const date = timestamp?.toDate?.();
   if (!date) return 'No date';
@@ -208,9 +194,9 @@ function SignedInHomePanel({
         <div className="home-hero-copy">
           <span className="home-hero-eyebrow">Welcome back, {firstName}</span>
           <h2>
-            {SIGNED_IN_HOME_HEADLINE[0]}
+            Pick up the board fast.
             <br />
-            <em>{SIGNED_IN_HOME_HEADLINE[1]}</em>
+            <em>Live play is one click away.</em>
           </h2>
           <p className="home-summary">
             Your rating, record, and recent results are ready. Start a board, open your account, or
