@@ -28,8 +28,6 @@ export default function PlayTabPanel({
   cancelMatchmaking,
   leaveMatch,
   toggleReady,
-  variantRules,
-  onToggleVariantRule,
 }) {
   return (
     <div className="tab-panel">
@@ -106,33 +104,6 @@ export default function PlayTabPanel({
         </>
       ) : (
         <>
-          <div style={{ marginBottom: '10px' }}>
-            <p className="play-section-label" style={{ marginBottom: '6px' }}>Optional Rules</p>
-            <div className="setup-rule-grid">
-              <button
-                className={`setup-rule-card${variantRules?.touchPiece ? ' active' : ''}`}
-                onClick={() => onToggleVariantRule('touchPiece')}
-                aria-pressed={variantRules?.touchPiece}
-              >
-                <span className="setup-rule-card__topline">
-                  <strong>Touch Piece</strong>
-                  <span className="setup-rule-card__state">{variantRules?.touchPiece ? 'On' : 'Off'}</span>
-                </span>
-                <span>Click a movable piece and you must move that piece.</span>
-              </button>
-              <button
-                className={`setup-rule-card${variantRules?.knightJacking ? ' active' : ''}`}
-                onClick={() => onToggleVariantRule('knightJacking')}
-                aria-pressed={variantRules?.knightJacking}
-              >
-                <span className="setup-rule-card__topline">
-                  <strong>Knight-Jacking</strong>
-                  <span className="setup-rule-card__state">{variantRules?.knightJacking ? 'On' : 'Off'}</span>
-                </span>
-                <span>Use either side's knights as aura sources.</span>
-              </button>
-            </div>
-          </div>
           <div style={{ marginBottom: '10px' }}>
             <p className="play-section-label" style={{ marginBottom: '6px' }}>⏱ Time Control</p>
             <div className="time-control-grid">

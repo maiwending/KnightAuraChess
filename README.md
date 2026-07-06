@@ -87,13 +87,11 @@ touch .env
 
 Add your Firebase configuration to `.env`:
 ```env
-VITE_FIREBASE_API_KEY="your_api_key_here"
-VITE_FIREBASE_AUTH_DOMAIN="your_project_id.firebaseapp.com"
 VITE_FIREBASE_PROJECT_ID="your_project_id"
-VITE_FIREBASE_STORAGE_BUCKET="your_project_id.appspot.com"
-VITE_FIREBASE_MESSAGING_SENDER_ID="your_sender_id"
-VITE_FIREBASE_APP_ID="your_app_id"
+VITE_FIREBASE_API_KEY="your_web_api_key_here"
 ```
+
+The app auto-fills the normal Firebase Auth domain and Storage bucket from `VITE_FIREBASE_PROJECT_ID`.
 
 ## 🔥 Firebase Setup From Scratch
 
@@ -113,18 +111,29 @@ Follow these steps if you are making a new Firebase backend for the app.
 2. Click the web icon: `</>`.
 3. Register the app with a nickname, for example `KnightAuraChess Web`.
 4. You do not need Firebase Hosting for local development.
-5. Copy the Firebase config values Firebase shows you.
+5. Copy the project id and web API key from the Firebase config.
 
 Put those values in `.env`:
 
 ```env
-VITE_FIREBASE_API_KEY="..."
-VITE_FIREBASE_AUTH_DOMAIN="your-project-id.firebaseapp.com"
 VITE_FIREBASE_PROJECT_ID="your-project-id"
-VITE_FIREBASE_STORAGE_BUCKET="your-project-id.appspot.com"
-VITE_FIREBASE_MESSAGING_SENDER_ID="..."
-VITE_FIREBASE_APP_ID="..."
+VITE_FIREBASE_API_KEY="..."
 ```
+
+The app auto-configures:
+
+```text
+authDomain    -> your-project-id.firebaseapp.com
+storageBucket -> your-project-id.appspot.com
+```
+
+If Firebase gives you custom values, or you prefer pasting the full web config, use:
+
+```env
+VITE_FIREBASE_CONFIG='{"apiKey":"...","authDomain":"your-project-id.firebaseapp.com","projectId":"your-project-id","storageBucket":"your-project-id.appspot.com","messagingSenderId":"...","appId":"..."}'
+```
+
+Individual `VITE_FIREBASE_*` values override `VITE_FIREBASE_CONFIG`.
 
 Restart `npm run dev` after editing `.env`.
 
@@ -294,26 +303,34 @@ Browser chat now defaults to same-origin `/api/text-ai` on:
 - `https://knightaurachess.com`
 - `https://www.knightaurachess.com`
 
-Configure Cloudflare Function env vars:
+Cloudflare defaults are already in `wrangler.toml`:
 
-```env
-TEXT_AI_MODEL="@cf/meta/llama-3-8b-instruct"
+```toml
+name = "knightaurachess"
+pages_build_output_dir = "./dist"
+
+[ai]
+binding = "knightaurachess"
 ```
 
 Route:
-- `functions/api/text-ai.js` calls Cloudflare Workers AI through the `knightaurachess` binding declared in `wrangler.toml`.
+- `functions/api/text-ai.js` calls Cloudflare Workers AI through the binding declared in `wrangler.toml`.
+- The backend auto-detects `knightaurachess`, `AI`, or `ai`, so dashboard-created bindings with common names still work.
+- `TEXT_AI_MODEL` defaults to `@cf/meta/llama-3-8b-instruct` if you do not set it.
 
 For production builds you can still override explicitly:
 
 ```env
 VITE_TEXT_AI_BASE_URL="/api/text-ai"
+TEXT_AI_MODEL="@cf/meta/llama-3-8b-instruct"
 ```
 
 Cloudflare deployment notes:
 - The repo is pre-configured for Cloudflare Pages with `wrangler.toml`.
-- Workers AI binding name: `knightaurachess`.
+- Workers AI binding name: `knightaurachess` by default.
+- `npm run validate:cloudflare` checks the Pages output directory and Workers AI binding before deploy.
 - GitHub Actions includes a manual **Deploy to Cloudflare Pages** workflow. Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub secrets, then run that workflow.
-- In Cloudflare Pages, confirm the Workers AI binding exists and redeploy if you configure it from the dashboard.
+- If Cloudflare does not pick up `wrangler.toml` for an existing Pages project, add the Workers AI binding manually once and redeploy.
 - If you prefer a proxy to another hosted LLM instead of Workers AI, keep `TEXT_AI_UPSTREAM_URL` and `TEXT_AI_UPSTREAM_AUTH_BEARER` configured as a fallback.
 
 ## 🚀 Deployment (Cloudflare Pages)
@@ -323,10 +340,10 @@ This project is configured for seamless deployment via Cloudflare Pages:
 1. Connect your Github repository to Cloudflare Pages.
 2. **Build command:** `npx vite build`
 3. **Build directory:** `dist`
-4. **Environment Variables:** Add all the `VITE_FIREBASE_*` variables from your `.env` file into the Cloudflare Pages settings.
-5. **Workers AI binding:** Add a Workers AI binding named `knightaurachess`.
+4. **Environment Variables:** Add at least `VITE_FIREBASE_PROJECT_ID` and `VITE_FIREBASE_API_KEY` to Cloudflare Pages. Add `VITE_FIREBASE_CONFIG` or explicit `VITE_FIREBASE_*` overrides only if your Firebase project uses custom values.
+5. **Workers AI binding:** already declared in `wrangler.toml` as `knightaurachess`.
 
-Manual Cloudflare setup:
+Manual Cloudflare setup, only if an existing Pages project ignores `wrangler.toml` bindings:
 
 1. Open Cloudflare Dashboard.
 2. Go to **Workers & Pages**.
@@ -334,7 +351,7 @@ Manual Cloudflare setup:
 4. Go to **Settings**.
 5. Go to **Bindings**.
 6. Add a **Workers AI** binding.
-7. Set **Variable name** to `knightaurachess`.
+7. Set **Variable name** to `knightaurachess` (`AI` or `ai` also work because the backend auto-detects them).
 8. Save.
 9. Go to **Deployments**.
 10. Redeploy the latest production deployment.

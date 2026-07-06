@@ -167,7 +167,7 @@ export default function App() {
   const [moveTimestamps, setMoveTimestamps] = useState([{ white: 0, black: 0 }]);
   const [currentMoveStartTime, setCurrentMoveStartTime] = useState(Date.now());
   const [selectedTimeControl, setSelectedTimeControl] = useState(DEFAULT_TIME_CONTROL);
-  const [setupVariantRules, setSetupVariantRules] = useState(loadVariantRules);
+  const [setupVariantRules] = useState(loadVariantRules);
   const [clockWhite, setClockWhite] = useState(null);
   const [clockBlack, setClockBlack] = useState(null);
   const [localResult, setLocalResult] = useState(null);
@@ -345,6 +345,7 @@ export default function App() {
     selectedTimeControl,
     botPool: BOT_POOL,
     displayName,
+    rating,
     incomingChallenge,
     variantRules: setupVariantRules,
   });
@@ -734,7 +735,6 @@ export default function App() {
       setPendingChallengeTarget(null);
       setSetupModalOpen(true);
     },
-    onNewGame: resetPractice,
     onStopAi: () => {
       setAiEnabled(false);
       resetPractice();
@@ -761,11 +761,6 @@ export default function App() {
       aiDifficulty,
       aiDifficultyLevels: AI_DIFFICULTY_LEVELS,
       onSelectAiDifficulty: setAiDifficulty,
-      variantRules: setupVariantRules,
-      onToggleVariantRule: (rule) => setSetupVariantRules((current) => ({
-        ...current,
-        [rule]: !current[rule],
-      })),
       onStartPractice: () => {
         setPendingChallengeTarget(null);
         return handleStartPracticeFromSetup();
@@ -818,11 +813,6 @@ export default function App() {
       cancelMatchmaking,
       leaveMatch,
       toggleReady,
-      variantRules: setupVariantRules,
-      onToggleVariantRule: (rule) => setSetupVariantRules((current) => ({
-        ...current,
-        [rule]: !current[rule],
-      })),
     },
     moveHistory,
     moveTable,

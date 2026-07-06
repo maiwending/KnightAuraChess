@@ -14,6 +14,7 @@
     "test:rules": "node --test src/firestore.rules.test.mjs",
     "test:rules:emulator": "firebase emulators:exec --only firestore \"npm run test:rules\"",
     "test": "npm run test:engine && npm run test:ui",
+    "validate:cloudflare": "node scripts/validate-cloudflare-config.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

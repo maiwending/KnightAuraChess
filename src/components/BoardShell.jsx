@@ -41,7 +41,6 @@ export default function BoardShell({
   onCancelPromotion,
   onFlipBoard,
   onOpenSetup,
-  onNewGame,
   onStopAi,
   onLeaveMatch,
   matchError,
@@ -150,23 +149,22 @@ export default function BoardShell({
 
       <PlayerBar position="bottom" formatClock={formatClock} {...bottomPlayer} />
 
-      <div className="board-actions">
-        <button className="btn btn-ghost" onClick={onFlipBoard} title="Flip board">
-          ⇅ Flip
+      <div className={`board-actions${!aiEnabled && !isOnline ? ' board-actions--compact' : ''}`}>
+        <button className="btn btn-ghost board-action-btn" onClick={onFlipBoard} title="Flip board">
+          <span className="board-action-icon" aria-hidden="true">⇅</span>
+          <span>Flip</span>
         </button>
-        <button className="btn btn-ghost" onClick={onOpenSetup} title="Game setup">
-          ⚙ Setup
-        </button>
-        <button className="btn btn-ghost" onClick={onNewGame} disabled={isOnline} title="New game">
-          + New
+        <button className="btn btn-primary board-action-btn" onClick={onOpenSetup} title="Game setup">
+          <span className="board-action-icon" aria-hidden="true">⚙</span>
+          <span>Setup</span>
         </button>
         {aiEnabled && (
-          <button className="btn btn-ghost" onClick={onStopAi}>
+          <button className="btn btn-ghost board-action-btn" onClick={onStopAi}>
             Stop AI
           </button>
         )}
         {isOnline && (
-          <button className="btn btn-danger" onClick={onLeaveMatch}>
+          <button className="btn btn-danger board-action-btn" onClick={onLeaveMatch}>
             Resign
           </button>
         )}
