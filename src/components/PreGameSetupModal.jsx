@@ -12,8 +12,6 @@ export default function PreGameSetupModal({
   aiDifficulty,
   aiDifficultyLevels,
   onSelectAiDifficulty,
-  variantRules,
-  onToggleVariantRule,
   onStartPractice,
   onStartAi,
   onStartOnline,
@@ -38,37 +36,9 @@ export default function PreGameSetupModal({
           <h3>{isChallengeSetup ? `Challenge ${challengeTarget.name}` : 'Game Setup'}</h3>
           <p className="muted">
             {isChallengeSetup
-              ? 'Choose the same setup controls as + New, then send the challenge.'
+              ? 'Choose the setup controls, then send the challenge.'
               : 'Set your board and timer before starting.'}
           </p>
-
-          <div className="setup-modal__section">
-            <p className="play-section-label">Optional Rules</p>
-            <div className="setup-rule-grid">
-              <button
-                className={`setup-rule-card${variantRules.touchPiece ? ' active' : ''}`}
-                onClick={() => onToggleVariantRule('touchPiece')}
-                aria-pressed={variantRules.touchPiece}
-              >
-                <span className="setup-rule-card__topline">
-                  <strong>Touch Piece</strong>
-                  <span className="setup-rule-card__state">{variantRules.touchPiece ? 'On' : 'Off'}</span>
-                </span>
-                <span>Click a movable piece and you must move that piece.</span>
-              </button>
-              <button
-                className={`setup-rule-card${variantRules.knightJacking ? ' active' : ''}`}
-                onClick={() => onToggleVariantRule('knightJacking')}
-                aria-pressed={variantRules.knightJacking}
-              >
-                <span className="setup-rule-card__topline">
-                  <strong>Knight-Jacking</strong>
-                  <span className="setup-rule-card__state">{variantRules.knightJacking ? 'On' : 'Off'}</span>
-                </span>
-                <span>Use either side's knights as aura sources.</span>
-              </button>
-            </div>
-          </div>
 
           <div className="setup-modal__section">
             <p className="play-section-label">Time Control</p>

@@ -35,12 +35,20 @@ Firebase (frontend):
 
 ```env
 VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
 VITE_FIREBASE_PROJECT_ID=
+
+# Optional: full web config JSON or explicit overrides.
+VITE_FIREBASE_CONFIG=
+VITE_FIREBASE_AUTH_DOMAIN=
 VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 ```
+
+Notes:
+- The frontend auto-configures `authDomain` and `storageBucket` from `VITE_FIREBASE_PROJECT_ID`.
+- `VITE_FIREBASE_CONFIG` can contain the full Firebase web config JSON.
+- Individual `VITE_FIREBASE_*` values override `VITE_FIREBASE_CONFIG`.
 
 Optional frontend:
 
@@ -70,7 +78,9 @@ TEXT_AI_UPSTREAM_AUTH_BEARER=
 ```
 
 Cloudflare bindings:
-- Workers AI binding name: `knightaurachess`
+- Workers AI binding name: `knightaurachess` in `wrangler.toml`.
+- `/api/text-ai` also auto-detects `AI`, `ai`, and `KNIGHTAURACHESS` to tolerate dashboard-created bindings.
+- Run `npm run validate:cloudflare` before Cloudflare deploys when changing `wrangler.toml`.
 
 ## Secrets (Do Not Commit Tokens)
 
@@ -82,8 +92,9 @@ Use these secret names instead:
   - `GH_PAT_REPO_RW` (repo content write if needed)
   - `GH_PAT_ACTIONS_RW` (only if workflow updates/dispatch are required)
   - `VITE_FIREBASE_API_KEY`
-  - `VITE_FIREBASE_AUTH_DOMAIN`
   - `VITE_FIREBASE_PROJECT_ID`
+  - `VITE_FIREBASE_CONFIG` (optional full web config JSON)
+  - `VITE_FIREBASE_AUTH_DOMAIN`
   - `VITE_FIREBASE_STORAGE_BUCKET`
   - `VITE_FIREBASE_MESSAGING_SENDER_ID`
   - `VITE_FIREBASE_APP_ID`

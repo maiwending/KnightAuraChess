@@ -23,6 +23,8 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run validate:cloudflare
+
       - run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}

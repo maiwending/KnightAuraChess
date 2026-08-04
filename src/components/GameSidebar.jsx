@@ -428,16 +428,25 @@ export default function GameSidebar({
           </div>
         )}
 
-        {activeTab === 'rankings' && firebaseEnabled && (
-          <Suspense fallback={panelFallback}>
+        {activeTab === 'rankings' && (
+          firebaseEnabled ? (
+            <Suspense fallback={panelFallback}>
+              <div className="tab-panel">
+                <LeaderboardPanel
+                  currentUser={rankingsProps.user}
+                  onPlayerClick={rankingsProps.onPlayerClick}
+                  embedded
+                />
+              </div>
+            </Suspense>
+          ) : (
             <div className="tab-panel">
-              <LeaderboardPanel
-                currentUser={rankingsProps.user}
-                onPlayerClick={rankingsProps.onPlayerClick}
-                embedded
-              />
+              <h3>Rank</h3>
+              <p className="muted leaderboard-empty">
+                Rankings need Firebase to be configured. Once it is online, everyone can view the leaderboard.
+              </p>
             </div>
-          </Suspense>
+          )
         )}
 
         {activeTab === 'social' && (

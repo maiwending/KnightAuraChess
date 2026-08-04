@@ -892,3 +892,373 @@
   color: #376d0f;
   border-color: rgba(79, 133, 25, 0.3);
 }
+
+/* Final page polish: make puzzle pages feel as finished as Play. */
+.cp-header {
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+}
+
+.cp-hero {
+  position: relative;
+}
+
+.cp-hero::before {
+  content: '';
+  position: absolute;
+  inset: 38px 28px auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 32%, transparent), transparent);
+  opacity: 0.72;
+}
+
+.cp-hero__copy,
+.cp-hero__stats,
+.cp-panel,
+.cp-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.cp-hero__copy::after,
+.cp-panel::after,
+.cp-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -38px 70px rgba(0,0,0,0.055);
+}
+
+.cp-hero__copy h1 {
+  text-wrap: balance;
+}
+
+.cp-hero__lede,
+.cp-card__description,
+.cp-empty,
+.cp-feedback {
+  color: color-mix(in srgb, var(--text-muted) 86%, var(--text-bright));
+}
+
+.cp-stat strong {
+  letter-spacing: -0.02em;
+}
+
+.cp-featured-tile,
+.cp-card,
+.cp-builder,
+.cp-submit-card {
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease,
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cp-featured-tile:hover,
+.cp-builder:hover,
+.cp-submit-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border-subtle));
+  box-shadow: var(--shadow-lift);
+}
+
+.cp-card__meta,
+.cp-card__actions,
+.cp-builder-actions {
+  gap: 10px;
+}
+
+.cp-pill,
+.cp-tag,
+.cp-sequence-chip {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.cp-input:focus,
+.cp-textarea:focus,
+.cp-tag-select:focus {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border-subtle));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.cp-board-shell,
+.cp-builder-board {
+  isolation: isolate;
+}
+
+[data-theme="light"] .cp-header {
+  box-shadow: 0 10px 24px rgba(76,58,34,0.1);
+}
+
+[data-theme="light"] .cp-hero::before {
+  background: linear-gradient(90deg, transparent, rgba(79,133,25,0.22), transparent);
+}
+
+[data-theme="light"] .cp-hero__copy::after,
+[data-theme="light"] .cp-panel::after,
+[data-theme="light"] .cp-card::after {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.82),
+    inset 0 -38px 70px rgba(76,58,34,0.035);
+}
+
+[data-theme="light"] .cp-hero__lede,
+[data-theme="light"] .cp-card__description,
+[data-theme="light"] .cp-empty,
+[data-theme="light"] .cp-feedback {
+  color: #665947;
+}
+
+@media (max-width: 720px) {
+  .cp-hero,
+  .cp-main {
+    padding-inline: 16px;
+  }
+
+  .cp-hero {
+    padding-top: 34px;
+  }
+
+  .cp-hero::before {
+    inset-inline: 16px;
+    top: 20px;
+  }
+
+  .cp-hero__copy,
+  .cp-panel {
+    padding: 18px;
+  }
+
+  .cp-featured-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Detail polish: puzzle marketplace-style cards and builder controls. */
+.cp-page {
+  scroll-padding-top: 84px;
+}
+
+.cp-header {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+}
+
+.cp-back-btn,
+.cp-hero__actions .cp-primary,
+.cp-hero__actions .cp-secondary {
+  border-radius: 999px;
+}
+
+.cp-stat,
+.cp-featured-tile,
+.cp-filter-btn,
+.cp-rate-btn,
+.cp-piece-btn,
+.cp-sequence-chip,
+.cp-tag {
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease,
+    box-shadow 220ms ease,
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.cp-stat:hover,
+.cp-filter-btn:hover,
+.cp-rate-btn:hover,
+.cp-piece-btn:hover {
+  transform: translateY(-1px);
+}
+
+.cp-featured-tile {
+  position: relative;
+  overflow: hidden;
+}
+
+.cp-featured-tile::after,
+.cp-card::before,
+.cp-builder::before,
+.cp-submit-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(125,196,53,0.12), transparent 38%),
+    linear-gradient(110deg, transparent, rgba(255,255,255,0.045), transparent);
+  opacity: 0;
+  transform: translateX(-18%);
+  transition:
+    opacity 180ms ease,
+    transform 380ms ease;
+}
+
+.cp-featured-tile:hover::after,
+.cp-card:hover::before,
+.cp-builder:hover::before,
+.cp-submit-card:hover::before {
+  opacity: 1;
+  transform: translateX(18%);
+}
+
+.cp-card > *,
+.cp-builder > *,
+.cp-submit-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.cp-card__badges,
+.cp-card__actions,
+.cp-builder-actions {
+  align-items: center;
+}
+
+.cp-card__actions .cp-secondary,
+.cp-card__actions .cp-primary,
+.cp-builder-actions .cp-secondary,
+.cp-builder-actions .cp-primary,
+.cp-submit-card .cp-primary,
+.cp-submit-card .cp-secondary {
+  min-height: 38px;
+}
+
+.cp-pill,
+.cp-tag,
+.cp-sequence-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  line-height: 1;
+}
+
+.cp-filter-row,
+.cp-rate-row,
+.cp-piece-row {
+  gap: 8px;
+}
+
+.cp-filter-btn.active,
+.cp-rate-btn.active,
+.cp-piece-btn.active {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    0 8px 18px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.cp-board-shell,
+.cp-builder-board {
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 76%, rgba(125,196,53,0.18));
+  background:
+    radial-gradient(circle at 50% 0%, rgba(125,196,53,0.08), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012));
+}
+
+.cp-input,
+.cp-textarea,
+.cp-tag-select {
+  transition:
+    border-color 180ms ease,
+    box-shadow 220ms ease,
+    background 180ms ease;
+}
+
+.cp-input::placeholder,
+.cp-textarea::placeholder {
+  color: color-mix(in srgb, var(--text-dim) 82%, transparent);
+}
+
+.cp-empty {
+  border: 1px dashed color-mix(in srgb, var(--border-subtle) 76%, rgba(125,196,53,0.18));
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(125,196,53,0.08), transparent 42%),
+    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012));
+}
+
+.cp-feedback {
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+}
+
+[data-theme="light"] .cp-featured-tile::after,
+[data-theme="light"] .cp-card::before,
+[data-theme="light"] .cp-builder::before,
+[data-theme="light"] .cp-submit-card::before {
+  background:
+    radial-gradient(circle at 96% 0%, rgba(125,196,53,0.14), transparent 38%),
+    linear-gradient(110deg, transparent, rgba(255,255,255,0.48), transparent);
+}
+
+[data-theme="light"] .cp-filter-btn.active,
+[data-theme="light"] .cp-rate-btn.active,
+[data-theme="light"] .cp-piece-btn.active {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.86),
+    0 7px 16px rgba(79,133,25,0.1);
+}
+
+[data-theme="light"] .cp-board-shell,
+[data-theme="light"] .cp-builder-board {
+  border-color: rgba(116,94,58,0.14);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(125,196,53,0.1), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,240,225,0.76));
+}
+
+[data-theme="light"] .cp-input::placeholder,
+[data-theme="light"] .cp-textarea::placeholder {
+  color: rgba(96,82,61,0.58);
+}
+
+[data-theme="light"] .cp-empty {
+  border-color: rgba(116,94,58,0.16);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(125,196,53,0.1), transparent 42%),
+    linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,240,225,0.82));
+}
+
+@media (max-width: 720px) {
+  .cp-header {
+    position: static;
+  }
+
+  .cp-card__actions,
+  .cp-builder-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-stat,
+  .cp-featured-tile,
+  .cp-filter-btn,
+  .cp-rate-btn,
+  .cp-piece-btn,
+  .cp-sequence-chip,
+  .cp-tag,
+  .cp-featured-tile::after,
+  .cp-card::before,
+  .cp-builder::before,
+  .cp-submit-card::before {
+    transition: none;
+  }
+
+  .cp-stat:hover,
+  .cp-filter-btn:hover,
+  .cp-rate-btn:hover,
+  .cp-piece-btn:hover {
+    transform: none;
+  }
+}

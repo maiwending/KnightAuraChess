@@ -9,17 +9,23 @@ function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
 
+function getWorkersAiBinding(env) {
+  const bindingNames = ['knightaurachess', 'AI', 'ai', 'KNIGHTAURACHESS'];
+  const name = bindingNames.find((candidate) => env[candidate]?.run);
+  return name ? { name, binding: env[name] } : { name: null, binding: null };
+}
+
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: JSON_HEADERS });
 }
 
 export async function onRequestPost(context) {
-  const workersAi = context.env.knightaurachess || context.env.AI;
+  const { binding: workersAi } = getWorkersAiBinding(context.env);
   const upstreamUrl = context.env.TEXT_AI_UPSTREAM_URL;
   if (!workersAi && !upstreamUrl) {
     return json(
       {
-        error: 'Configure an AI binding or TEXT_AI_UPSTREAM_URL.',
+        error: 'Configure a Workers AI binding named knightaurachess, AI, or ai, or set TEXT_AI_UPSTREAM_URL.',
       },
       503
     );

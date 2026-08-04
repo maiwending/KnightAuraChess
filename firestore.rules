@@ -189,7 +189,7 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn() && (
         isBotProfile(uid, request.resource.data) ||
         (isSelf(uid) && matchingUsernameClaimAfter(uid))

@@ -415,13 +415,38 @@ export function useGameActions({
   const acceptChallenge = useCallback(async () => {
     if (!incomingChallenge || !user || !db) return;
     try {
-      await joinCustomGame(incomingChallenge.gameId);
+      if (incomingChallenge.isBotChallenge) {
+        const gameRefDoc = doc(db, GAMES_COLLECTION, incomingChallenge.gameId);
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(gameRefDoc);
+          if (!snap.exists()) throw new Error('Game not found');
+          const data = snap.data();
+          if (data.status !== 'waiting') throw new Error('Game already started');
+          if (data.whiteId !== user.uid) throw new Error('Challenge does not belong to you');
+          if (!data.blackId?.startsWith?.('bot_')) throw new Error('Bot opponent missing');
+          tx.update(gameRefDoc, {
+            whiteReady: true,
+            blackReady: true,
+            status: 'active',
+            startedAt: serverTimestamp(),
+            lastMoveAt: serverTimestamp(),
+            whiteTimeLeft: data.timeControl ?? DEFAULT_TIME_CONTROL,
+            blackTimeLeft: data.timeControl ?? DEFAULT_TIME_CONTROL,
+            updatedAt: serverTimestamp(),
+          });
+        });
+        setGameId(incomingChallenge.gameId);
+        setMatchStatus('active');
+        setActiveTab('play');
+      } else {
+        await joinCustomGame(incomingChallenge.gameId);
+      }
       await updateDoc(doc(db, 'game_challenges', incomingChallenge.id), { status: 'accepted' });
       localStorage.removeItem(BOT_CHALLENGE_PENDING_KEY);
     } catch (error) {
       setMatchError(error.message || 'Failed to accept challenge');
     }
-  }, [db, incomingChallenge, joinCustomGame, setMatchError, user]);
+  }, [db, incomingChallenge, joinCustomGame, setActiveTab, setGameId, setMatchError, setMatchStatus, user]);
 
   const declineChallenge = useCallback(async () => {
     if (!incomingChallenge || !db) return;

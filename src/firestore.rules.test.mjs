@@ -6,7 +6,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'knightaura-rules-test';
 const rules = readFileSync(resolve(process.cwd(), 'firestore.rules'), 'utf8');
@@ -39,6 +39,27 @@ async function seedDm(overrides = {}) {
   });
 }
 
+async function seedPublicReadData() {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'users', 'ranked-player'), {
+      uid: 'ranked-player',
+      displayName: 'Ranked Player',
+      usernameKey: 'ranked player',
+      rating: 1234,
+      wins: 3,
+      losses: 1,
+      draws: 0,
+    });
+    await setDoc(doc(db, 'announcements', 'announcement-1'), {
+      text: 'Welcome to the lobby.',
+      authorId: 'ranked-player',
+      authorName: 'Ranked Player',
+      createdAt: new Date().toISOString(),
+    });
+  });
+}
+
 before(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -52,6 +73,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await seedGame();
   await seedDm();
+  await seedPublicReadData();
 });
 
 after(async () => {
@@ -144,6 +166,49 @@ test('unauthenticated users cannot update games', async () => {
 
   await assertFails(
     updateDoc(doc(anonymousDb, 'games', 'game-1'), { lastMove: 'e2e4' })
+  );
+});
+
+test('unauthenticated users can read public rank profiles', async () => {
+  const anonymousDb = testEnv.unauthenticatedContext().firestore();
+
+  await assertSucceeds(getDoc(doc(anonymousDb, 'users', 'ranked-player')));
+});
+
+test('unauthenticated users can list public rank profiles', async () => {
+  const anonymousDb = testEnv.unauthenticatedContext().firestore();
+
+  await assertSucceeds(getDocs(query(collection(anonymousDb, 'users'), orderBy('rating', 'desc'))));
+});
+
+test('unauthenticated users cannot create rank profiles', async () => {
+  const anonymousDb = testEnv.unauthenticatedContext().firestore();
+
+  await assertFails(
+    setDoc(doc(anonymousDb, 'users', 'anonymous-profile'), {
+      uid: 'anonymous-profile',
+      displayName: 'Anonymous Profile',
+      usernameKey: 'anonymous profile',
+    })
+  );
+});
+
+test('unauthenticated users can read announcements', async () => {
+  const anonymousDb = testEnv.unauthenticatedContext().firestore();
+
+  await assertSucceeds(getDoc(doc(anonymousDb, 'announcements', 'announcement-1')));
+});
+
+test('unauthenticated users cannot create announcements', async () => {
+  const anonymousDb = testEnv.unauthenticatedContext().firestore();
+
+  await assertFails(
+    setDoc(doc(anonymousDb, 'announcements', 'anonymous-announcement'), {
+      text: 'Posting should be blocked.',
+      authorId: 'anonymous-profile',
+      authorName: 'Anonymous',
+      createdAt: new Date().toISOString(),
+    })
   );
 });
 
