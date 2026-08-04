@@ -5,7 +5,8 @@ This file gives Codex repository-specific guidance for KnightAuraChess.
 ## Build, Run, Test
 
 Node requirement:
-- `>=20.19.0` (see `package.json`)
+- Node 24 is recommended for local development and GitHub Actions.
+- `package.json` still allows `>=20.19.0` for local compatibility.
 
 Commands:
 
@@ -27,7 +28,7 @@ npm run test:rules:emulator
 
 Notes:
 - `npm run test:rules` requires Firestore emulator host/port; use `test:rules:emulator`.
-- CI runs lint + test + build on Node 20.19 and 22.
+- CI runs lint + test + build on Node 22 and 24.
 
 ## Environment Variables
 

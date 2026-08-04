@@ -65,7 +65,7 @@ That split makes it easier to reason about where a bug belongs:
 ## 📦 Installation & Local Development
 
 ### Prerequisites
-*   Node.js v20.19+ 
+*   Node.js v24 recommended (`package.json` allows v20.19+)
 *   A Firebase Project (Firestore + Authentication)
 
 ### Setup
