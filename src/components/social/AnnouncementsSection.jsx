@@ -160,7 +160,9 @@ export default function AnnouncementsSection({ currentUser, currentUserName, cur
           </button>
         </div>
       ) : (
-        <p className="muted" style={{ fontSize: '0.85rem' }}>Sign in to post announcements.</p>
+        <p className="muted" style={{ fontSize: '0.85rem' }}>
+          Read-only view. Sign in to post announcements.
+        </p>
       )}
     </div>
   );

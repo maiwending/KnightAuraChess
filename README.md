@@ -77,15 +77,36 @@ cd KnightAuraChess
 
 # Use the repo's Node version
 nvm use
+```
 
-# Install dependencies
+Run the guided setup script for your shell:
+
+```bash
+./setup.sh
+```
+
+```powershell
+.\setup.ps1
+```
+
+The setup scripts:
+- prompt for Firebase, Cloudflare, and optional backend values
+- write a local `.env`
+- install npm dependencies if you choose
+- validate the Cloudflare Pages + Workers AI config
+- optionally run a production build
+
+Setup implementation files live in `setup/`; only the root `setup.sh` and `setup.ps1` launchers stay outside the folder.
+
+Manual fallback:
+
+```bash
 npm install
-
-# Create a local environment file
 touch .env
 ```
 
 Add your Firebase configuration to `.env`:
+
 ```env
 VITE_FIREBASE_PROJECT_ID="your_project_id"
 VITE_FIREBASE_API_KEY="your_web_api_key_here"

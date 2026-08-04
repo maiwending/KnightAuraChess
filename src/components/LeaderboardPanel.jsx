@@ -1,24 +1,50 @@
 import React, { useEffect, useState } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db, firebaseEnabled } from '../utils/firebase.js';
+
+function toLeaderboardPlayers(docs) {
+  return docs
+    .map((d) => {
+      const data = d.data();
+      const rating = Number(data.rating ?? 1200);
+      return {
+        id: d.id,
+        ...data,
+        rating: Number.isFinite(rating) ? rating : 1200,
+      };
+    })
+    .filter((player) => player.displayName || player.usernameKey || player.email || player.rating)
+    .sort((a, b) => {
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      return String(a.displayName || a.id).localeCompare(String(b.displayName || b.id));
+    })
+    .map((player, i) => ({ ...player, rank: i + 1 }));
+}
 
 export default function LeaderboardPanel({ currentUser, onPlayerClick, embedded }) {
   const [players, setPlayers] = useState([]);
+  const [loading, setLoading] = useState(Boolean(firebaseEnabled && db));
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    if (!firebaseEnabled || !db) return;
-    const q = query(
-      collection(db, 'users'),
-      orderBy('rating', 'desc')
-    );
+    if (!firebaseEnabled || !db) {
+      setLoading(false);
+      setLoadError('Rankings need Firebase to be configured.');
+      return undefined;
+    }
+    setLoading(true);
+    setLoadError('');
     const unsub = onSnapshot(
-      q,
+      collection(db, 'users'),
       (snap) => {
-        setPlayers(snap.docs.map((d, i) => ({ rank: i + 1, id: d.id, ...d.data() })));
+        setPlayers(toLeaderboardPlayers(snap.docs));
+        setLoading(false);
       },
       (error) => {
         console.warn('Leaderboard snapshot failed:', error?.message || error);
         setPlayers([]);
+        setLoadError('Rankings are blocked by deployed Firestore rules. Ask the Firebase project owner to deploy the latest rules.');
+        setLoading(false);
       }
     );
     return () => unsub();
@@ -30,7 +56,13 @@ export default function LeaderboardPanel({ currentUser, onPlayerClick, embedded 
         <h3 className="leaderboard-title">Rank</h3>
       </div>
       <div className="leaderboard-list">
-        {players.length === 0 && (
+        {loading && (
+          <p className="muted leaderboard-empty">Loading rankings...</p>
+        )}
+        {!loading && loadError && (
+          <p className="muted leaderboard-empty">{loadError}</p>
+        )}
+        {!loading && !loadError && players.length === 0 && (
           <p className="muted leaderboard-empty">No players yet.</p>
         )}
         {players.map((p) => (
