@@ -14,8 +14,18 @@ import { normalizeVariantRules, variantRulesKey } from '../utils/variantRules.js
 
 const GAMES_COLLECTION = 'games';
 const BOT_CHALLENGE_COOLDOWN_MS = 15 * 60 * 1000;
+const BOT_WAITING_GAME_FILL_MIN_MS = 10_000;
+const BOT_WAITING_GAME_FILL_RANDOM_MS = 8_000;
 const BOT_CHALLENGE_PENDING_KEY = 'cr_bot_challenge_pending';
 const BOT_CHALLENGE_LAST_KEY = 'cr_bot_challenge_last';
+
+function pickBot(botPool, seedSource, fallbackBot) {
+  if (!botPool?.length) return fallbackBot || null;
+  const seed = String(seedSource || fallbackBot?.uid || 'bot')
+    .split('')
+    .reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) | 0, 0);
+  return botPool[Math.abs(seed) % botPool.length] || fallbackBot || botPool[0];
+}
 
 export function useAiBotEngine({
   user,
@@ -34,6 +44,7 @@ export function useAiBotEngine({
   selectedTimeControl,
   botPool,
   displayName,
+  rating,
   incomingChallenge,
   variantRules,
 }) {
@@ -43,6 +54,8 @@ export function useAiBotEngine({
   const aiWorkerRef = useRef(null);
   const aiRequestIdRef = useRef(0);
   const botMovePendingRef = useRef(false);
+  const botRequestedFenRef = useRef(null);
+  const botFillAttemptRef = useRef(null);
 
   const cancelAiSearch = useCallback(() => {
     aiRequestIdRef.current += 1;
@@ -195,6 +208,7 @@ export function useAiBotEngine({
             await handleBotOnlineMove(msg);
           } finally {
             botMovePendingRef.current = false;
+            botRequestedFenRef.current = null;
             setAiThinking(false);
           }
           return;
@@ -248,6 +262,7 @@ export function useAiBotEngine({
       } else if (msg.type === 'error') {
         console.error('AI worker error:', msg.message);
         setAiError(msg.message);
+        botRequestedFenRef.current = null;
         setAiThinking(false);
       }
     };
@@ -255,6 +270,8 @@ export function useAiBotEngine({
     worker.onerror = (err) => {
       console.error('AI worker crashed:', err);
       setAiError('AI engine crashed');
+      botRequestedFenRef.current = null;
+      botMovePendingRef.current = false;
       setAiThinking(false);
     };
 
@@ -284,9 +301,7 @@ export function useAiBotEngine({
     const lastBotChallengeAt = Number.parseInt(localStorage.getItem(BOT_CHALLENGE_LAST_KEY) || '0', 10) || 0;
     if (now - lastBotChallengeAt < BOT_CHALLENGE_COOLDOWN_MS) return;
 
-    const seedSource = gameId || user.uid || selectedBot.uid;
-    const seed = seedSource.split('').reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) | 0, 0);
-    const selectedBot = botPool[Math.abs(seed) % botPool.length] || bot;
+    const selectedBot = pickBot(botPool, gameId || user.uid || bot.uid, bot);
     const botRef = doc(db, 'users', selectedBot.uid);
     const botSnap = await getDoc(botRef);
     let botRating = selectedBot.rating ?? 1200;
@@ -322,14 +337,14 @@ export function useAiBotEngine({
       variantRules: selectedRules,
       variantKey: variantRulesKey(selectedRules),
       status: 'waiting',
-      whiteId: selectedBot.uid,
-      whiteName: selectedBot.name,
-      whiteRating: botRating,
+      whiteId: user.uid,
+      whiteName: displayName,
+      whiteRating: rating,
       whiteReady: false,
-      blackReady: false,
-      blackId: null,
-      blackName: null,
-      blackRating: null,
+      blackReady: true,
+      blackId: selectedBot.uid,
+      blackName: selectedBot.name,
+      blackRating: botRating,
       fen: newGame.fen(),
       moveHistory: [],
       moveSeq: 0,
@@ -351,7 +366,13 @@ export function useAiBotEngine({
     });
     localStorage.setItem(BOT_CHALLENGE_LAST_KEY, String(now));
     localStorage.setItem(BOT_CHALLENGE_PENDING_KEY, '1');
-  }, [botPool, db, displayName, gameId, incomingChallenge, selectedTimeControl, user, variantRules]);
+  }, [botPool, db, displayName, gameId, incomingChallenge, rating, selectedTimeControl, user, variantRules]);
+
+  const waitingGameStatus = gameData?.status;
+  const waitingGameWhiteId = gameData?.whiteId;
+  const waitingGameBlackId = gameData?.blackId;
+  const waitingGameUpdatedAtMs = gameData?.updatedAt?.toMillis?.() || null;
+  const waitingGameCreatedAtMs = gameData?.createdAt?.toMillis?.() || null;
 
   useEffect(() => {
     if (!user || !db || gameId || incomingChallenge) return undefined;
@@ -371,14 +392,119 @@ export function useAiBotEngine({
   }, [botPool, db, gameId, incomingChallenge, sendBotChallenge, user]);
 
   useEffect(() => {
-    if (!isBotOnlineGame || !gameData || gameData.status !== 'active') return;
+    if (
+      !user ||
+      !db ||
+      !gameId ||
+      waitingGameStatus !== 'waiting' ||
+      waitingGameWhiteId !== user.uid ||
+      waitingGameBlackId ||
+      !botPool?.length
+    ) {
+      botFillAttemptRef.current = null;
+      return undefined;
+    }
+
+    const fillKey = `${gameId}:${waitingGameUpdatedAtMs || waitingGameCreatedAtMs || ''}`;
+    if (botFillAttemptRef.current === fillKey) return undefined;
+    botFillAttemptRef.current = fillKey;
+
+    const delayMs = BOT_WAITING_GAME_FILL_MIN_MS + Math.floor(Math.random() * BOT_WAITING_GAME_FILL_RANDOM_MS);
+    const timer = window.setTimeout(async () => {
+      const selectedBot = pickBot(botPool, gameId || user.uid);
+      if (!selectedBot?.uid) return;
+
+      try {
+        const botRef = doc(db, 'users', selectedBot.uid);
+        const botSnap = await getDoc(botRef);
+        let botRating = selectedBot.rating ?? 1200;
+        if (!botSnap.exists()) {
+          await setDoc(botRef, {
+            uid: selectedBot.uid,
+            displayName: selectedBot.name,
+            isBot: true,
+            rating: botRating,
+            wins: 0,
+            losses: 0,
+            draws: 0,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          const botData = botSnap.data();
+          botRating = botData.rating ?? botRating;
+          if (!botData.displayName || botData.isBot !== true) {
+            await setDoc(botRef, {
+              uid: selectedBot.uid,
+              displayName: selectedBot.name,
+              isBot: true,
+              updatedAt: serverTimestamp(),
+            }, { merge: true });
+          }
+        }
+
+        const gameRef = doc(db, GAMES_COLLECTION, gameId);
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(gameRef);
+          if (!snap.exists()) return;
+          const data = snap.data();
+          if (data.status !== 'waiting') return;
+          if (data.whiteId !== user.uid) return;
+          if (data.blackId) return;
+
+          const timeControl = data.timeControl ?? selectedTimeControl;
+          tx.update(gameRef, {
+            blackId: selectedBot.uid,
+            blackName: selectedBot.name,
+            blackRating: botRating,
+            whiteReady: true,
+            blackReady: true,
+            status: 'active',
+            startedAt: serverTimestamp(),
+            lastMoveAt: serverTimestamp(),
+            whiteTimeLeft: timeControl,
+            blackTimeLeft: timeControl,
+            updatedAt: serverTimestamp(),
+          });
+        });
+      } catch (error) {
+        console.warn('Bot fill failed:', error?.message || error);
+        botFillAttemptRef.current = null;
+      }
+    }, delayMs);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    botPool,
+    db,
+    gameId,
+    selectedTimeControl,
+    user,
+    waitingGameBlackId,
+    waitingGameCreatedAtMs,
+    waitingGameStatus,
+    waitingGameUpdatedAtMs,
+    waitingGameWhiteId,
+  ]);
+
+  useEffect(() => {
+    if (!isBotOnlineGame || !gameData || gameData.status !== 'active') {
+      botRequestedFenRef.current = null;
+      return;
+    }
     if (!gameData.blackId?.startsWith('bot_')) return;
     if (!gameData.fen) return;
-    if (gameData.fen.split(' ')[1] !== 'b') return;
+    if (gameData.fen.split(' ')[1] !== 'b') {
+      botRequestedFenRef.current = null;
+      return;
+    }
     if (botMovePendingRef.current) return;
-    botMovePendingRef.current = true;
+    if (botRequestedFenRef.current === gameData.fen) return;
+    botRequestedFenRef.current = gameData.fen;
     if (!requestAiMove(gameData.fen, [], [], 'hard')) {
-      botMovePendingRef.current = false;
+      botRequestedFenRef.current = null;
     }
   }, [gameData, isBotOnlineGame, requestAiMove]);
 

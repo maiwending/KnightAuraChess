@@ -46,7 +46,7 @@ function getGameSummary(game, userId) {
   }
 
   if (status === 'abandoned' && !game.winner) {
-    return { result: 'Abandoned', className: 'draw', opponentName };
+    return { result: 'Abandoned', className: 'abandoned', opponentName };
   }
 
   if (!game.winner) {
@@ -194,9 +194,9 @@ function SignedInHomePanel({
         <div className="home-hero-copy">
           <span className="home-hero-eyebrow">Welcome back, {firstName}</span>
           <h2>
-            Pick up the board fast.
+            Friendly knights cast an <em>aura</em>.
             <br />
-            <em>Live play is one click away.</em>
+            Pieces in it can <em>jump one blocker</em>.
           </h2>
           <p className="home-summary">
             Your rating, record, and recent results are ready. Start a board, open your account, or

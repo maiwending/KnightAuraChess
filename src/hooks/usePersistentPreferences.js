@@ -37,7 +37,6 @@ export function usePersistentPreferences() {
   const [showEmpoweredMarks, setShowEmpoweredMarks] = useState(
     () => localStorage.getItem('cr_empowered_marks') !== 'false'
   );
-  const [liveVoiceChat, setLiveVoiceChat] = useState(() => localStorage.getItem('cr_live_voice_chat') === 'true');
   const [seasonalDecorations, setSeasonalDecorations] = useState(
     () => localStorage.getItem('cr_seasonal_decorations') !== 'false'
   );
@@ -63,7 +62,6 @@ export function usePersistentPreferences() {
   useEffect(() => {
     localStorage.setItem('cr_empowered_marks', showEmpoweredMarks ? 'true' : 'false');
   }, [showEmpoweredMarks]);
-  useEffect(() => { localStorage.setItem('cr_live_voice_chat', liveVoiceChat ? 'true' : 'false'); }, [liveVoiceChat]);
   useEffect(() => {
     localStorage.setItem('cr_seasonal_decorations', seasonalDecorations ? 'true' : 'false');
   }, [seasonalDecorations]);
@@ -112,8 +110,6 @@ export function usePersistentPreferences() {
     setPieceStyle,
     showEmpoweredMarks,
     setShowEmpoweredMarks,
-    liveVoiceChat,
-    setLiveVoiceChat,
     seasonalDecorations,
     setSeasonalDecorations,
     seasonalDecorationDensity,

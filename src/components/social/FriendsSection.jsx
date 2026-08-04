@@ -130,7 +130,7 @@ export default function FriendsSection({ currentUser, onOpenDm, onPlayerClick, o
             >
               Message
             </button>
-            {onChallengeFriend && !isBotUid(friend.uid) && (
+            {onChallengeFriend && (
               <button
                 className="btn btn-primary"
                 style={{ padding: '0.25rem 0.6rem', fontSize: '0.78rem' }}

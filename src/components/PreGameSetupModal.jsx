@@ -12,14 +12,15 @@ export default function PreGameSetupModal({
   aiDifficulty,
   aiDifficultyLevels,
   onSelectAiDifficulty,
-  variantRules,
-  onToggleVariantRule,
   onStartPractice,
   onStartAi,
   onStartOnline,
+  onStartCustomGame,
+  challengeTarget,
   isOnline,
 }) {
   if (!isOpen) return null;
+  const isChallengeSetup = Boolean(challengeTarget);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -32,36 +33,12 @@ export default function PreGameSetupModal({
       >
         <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         <div className="setup-modal__content">
-          <h3>Game Setup</h3>
-          <p className="muted">Set your board and timer before starting.</p>
-
-          <div className="setup-modal__section">
-            <p className="play-section-label">Optional Rules</p>
-            <div className="setup-rule-grid">
-              <button
-                className={`setup-rule-card${variantRules.touchPiece ? ' active' : ''}`}
-                onClick={() => onToggleVariantRule('touchPiece')}
-                aria-pressed={variantRules.touchPiece}
-              >
-                <span className="setup-rule-card__topline">
-                  <strong>Touch Piece</strong>
-                  <span className="setup-rule-card__state">{variantRules.touchPiece ? 'On' : 'Off'}</span>
-                </span>
-                <span>Click a movable piece and you must move that piece.</span>
-              </button>
-              <button
-                className={`setup-rule-card${variantRules.knightJacking ? ' active' : ''}`}
-                onClick={() => onToggleVariantRule('knightJacking')}
-                aria-pressed={variantRules.knightJacking}
-              >
-                <span className="setup-rule-card__topline">
-                  <strong>Knight-Jacking</strong>
-                  <span className="setup-rule-card__state">{variantRules.knightJacking ? 'On' : 'Off'}</span>
-                </span>
-                <span>Use either side's knights as aura sources.</span>
-              </button>
-            </div>
-          </div>
+          <h3>{isChallengeSetup ? `Challenge ${challengeTarget.name}` : 'Game Setup'}</h3>
+          <p className="muted">
+            {isChallengeSetup
+              ? 'Choose the setup controls, then send the challenge.'
+              : 'Set your board and timer before starting.'}
+          </p>
 
           <div className="setup-modal__section">
             <p className="play-section-label">Time Control</p>
@@ -123,6 +100,13 @@ export default function PreGameSetupModal({
             <button className="btn btn-ghost" onClick={onStartOnline} disabled={!user || isOnline}>
               {user ? (isOnline ? 'Online Active' : 'Find Online Match') : 'Sign In for Online'}
             </button>
+            {onStartCustomGame && (
+              <button className="btn btn-primary" onClick={onStartCustomGame} disabled={!user}>
+                {user
+                  ? (isChallengeSetup ? 'Send Challenge' : 'Create Game')
+                  : (isChallengeSetup ? 'Sign In to Challenge' : 'Sign In to Create')}
+              </button>
+            )}
           </div>
         </div>
       </div>

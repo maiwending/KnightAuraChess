@@ -703,9 +703,17 @@ function PuzzleCard({
   );
 }
 
-export default function CommunityPuzzlesPage({ onBack, onOpenLearn, currentUser, currentUserName }) {
+export default function CommunityPuzzlesPage({
+  onBack,
+  onOpenLearn,
+  onOpenPublishPuzzle,
+  currentUser,
+  currentUserName,
+  initialView = 'browse',
+  publishOnly = false,
+}) {
   const [puzzles, setPuzzles] = useState([]);
-  const [view, setView] = useState('browse');
+  const [view, setView] = useState(initialView);
   const [filter, setFilter] = useState('all');
   const [tagFilter, setTagFilter] = useState('all');
   const [editingPuzzleId, setEditingPuzzleId] = useState(null);
@@ -726,11 +734,11 @@ export default function CommunityPuzzlesPage({ onBack, onOpenLearn, currentUser,
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = 'knightAuraChess — Puzzles';
+    document.title = publishOnly ? 'knightAuraChess — Publish Puzzle' : 'knightAuraChess — Puzzles';
     return () => {
       document.title = previousTitle;
     };
-  }, []);
+  }, [publishOnly]);
 
   useEffect(() => {
     let active = true;
@@ -956,7 +964,7 @@ export default function CommunityPuzzlesPage({ onBack, onOpenLearn, currentUser,
       }
 
       resetForm();
-      setView('browse');
+      setView(publishOnly ? 'submit' : 'browse');
       setSubmitStatus(wasEditing
         ? 'Puzzle updated.'
         : (firebaseEnabled && db && currentUser
@@ -1127,14 +1135,20 @@ export default function CommunityPuzzlesPage({ onBack, onOpenLearn, currentUser,
         <button className="lp-back-btn" onClick={onBack}>
           ← Back to Home
         </button>
-        <span className="lp-crumb">Knight-Aura&nbsp;<strong>Puzzles</strong></span>
+        <span className="lp-crumb">Knight-Aura&nbsp;<strong>{publishOnly ? 'Publish' : 'Puzzles'}</strong></span>
         <span className="lp-spacer" />
         <nav className="lp-toc">
-          <button type="button" className={`lp-toc-link ${view === 'browse' ? 'active' : ''}`} onClick={() => setView('browse')}>
-            Browse
-          </button>
-          <button type="button" className={`lp-toc-link ${view === 'submit' ? 'active' : ''}`} onClick={() => setView('submit')}>
-            Submit
+          {!publishOnly && (
+            <button type="button" className={`lp-toc-link ${view === 'browse' ? 'active' : ''}`} onClick={() => setView('browse')}>
+              Browse
+            </button>
+          )}
+          <button
+            type="button"
+            className={`lp-toc-link ${view === 'submit' ? 'active' : ''}`}
+            onClick={() => (publishOnly ? undefined : setView('submit'))}
+          >
+            Publish
           </button>
           <button type="button" className="lp-toc-link" onClick={onOpenLearn}>
             Learn
@@ -1145,13 +1159,15 @@ export default function CommunityPuzzlesPage({ onBack, onOpenLearn, currentUser,
       <section className="cp-hero">
         <div className="cp-hero__copy">
           <div className="lp-hero-eyebrow">Community-made</div>
-          <h1>Browse puzzles the community publishes, then add your own.</h1>
+          <h1>{publishOnly ? 'Publish a community puzzle.' : 'Browse puzzles the community publishes, then add your own.'}</h1>
           <p className="cp-hero__lede">
-            Every puzzle here lives in the same repo-backed app. Signed-in players can publish positions, and everyone can solve them.
+            {publishOnly
+              ? 'Build the position with the board, click the solution line, and save it to Firebase.'
+              : 'Every puzzle here is shared through Firebase. Signed-in players can publish positions, and everyone can solve them.'}
           </p>
           <div className="cp-hero__actions">
-            <button className="btn btn-primary" onClick={() => setView('browse')}>Browse puzzles</button>
-            <button className="btn btn-ghost" onClick={() => setView('submit')}>Publish a puzzle</button>
+            {!publishOnly && <button className="btn btn-primary" onClick={() => setView('browse')}>Browse puzzles</button>}
+            <button className="btn btn-ghost" onClick={onOpenPublishPuzzle || (() => setView('submit'))}>Publish a puzzle</button>
           </div>
         </div>
         <div className="cp-hero__stats">
@@ -1171,7 +1187,7 @@ export default function CommunityPuzzlesPage({ onBack, onOpenLearn, currentUser,
       </section>
 
       <main className="cp-main">
-        {(view === 'browse' || view === 'submit') && (
+        {!publishOnly && (view === 'browse' || view === 'submit') && (
           <section className="cp-panel">
             <div className="cp-panel__head">
               <div>
@@ -1234,7 +1250,7 @@ export default function CommunityPuzzlesPage({ onBack, onOpenLearn, currentUser,
           </section>
         )}
 
-        {view === 'submit' && (
+        {(publishOnly || view === 'submit') && (
           <section className="cp-panel">
             <div className="cp-panel__head">
               <div>
@@ -1243,7 +1259,7 @@ export default function CommunityPuzzlesPage({ onBack, onOpenLearn, currentUser,
               </div>
               <span className="muted">
                 {firebaseEnabled
-                  ? (currentUser ? 'Publishing to the shared board.' : 'Sign in to publish to Firestore.')
+                  ? (currentUser ? 'Publishing to Firebase.' : 'Sign in to publish to Firebase.')
                   : 'Stored locally in this browser.'}
               </span>
             </div>
@@ -1335,7 +1351,7 @@ export default function CommunityPuzzlesPage({ onBack, onOpenLearn, currentUser,
                   type="button"
                   onClick={() => {
                     resetForm();
-                    setView('browse');
+                    setView(publishOnly ? 'submit' : 'browse');
                   }}
                 >
                   Cancel

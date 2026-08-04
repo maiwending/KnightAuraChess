@@ -61,8 +61,25 @@ export default function AppPageRouter({
         <CommunityPuzzlesPage
           onBack={() => onNavigate('home')}
           onOpenLearn={() => onNavigate('learn')}
+          onOpenPublishPuzzle={() => onNavigate('publish-puzzle')}
           currentUser={currentUser}
           currentUserName={currentUserName}
+        />
+      </Suspense>
+    );
+  }
+
+  if (currentPage === 'publish-puzzle') {
+    return (
+      <Suspense fallback={pageFallback}>
+        <CommunityPuzzlesPage
+          onBack={() => onNavigate('puzzles')}
+          onOpenLearn={() => onNavigate('learn')}
+          onOpenPublishPuzzle={() => onNavigate('publish-puzzle')}
+          currentUser={currentUser}
+          currentUserName={currentUserName}
+          initialView="submit"
+          publishOnly
         />
       </Suspense>
     );

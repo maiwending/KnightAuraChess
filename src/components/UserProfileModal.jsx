@@ -35,7 +35,7 @@ function Avatar({ photoURL, displayName, size = 'md' }) {
   );
 }
 
-export default function UserProfileModal({ profileUid, currentUser, currentUserName, onClose, onOpenDm }) {
+export default function UserProfileModal({ profileUid, currentUser, currentUserName, onClose, onOpenDm, onChallengePlayer }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -249,6 +249,17 @@ export default function UserProfileModal({ profileUid, currentUser, currentUserN
                     <button className="btn btn-ghost" onClick={handleMessage}>
                       Message
                     </button>
+                    {onChallengePlayer && (
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                          onChallengePlayer(profileUid, profile.displayName || 'Player');
+                          onClose();
+                        }}
+                      >
+                        Challenge
+                      </button>
+                    )}
                   </>
                 )}
               </div>

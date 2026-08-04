@@ -1,7 +1,9 @@
 /* ─── Learn Page shell ─── */
 .lp-page {
   min-height: 100vh;
+  font-family: var(--font-body);
   background:
+    radial-gradient(circle at 12% 8%, rgba(219, 168, 75, 0.06), transparent 28rem),
     radial-gradient(ellipse 80% 40% at 50% 0%, rgba(74, 144, 217, 0.06), transparent 70%),
     var(--bg-body);
 }
@@ -15,8 +17,11 @@
   align-items: center;
   gap: 16px;
   padding: 14px 28px;
-  background: var(--surface-glass);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012)),
+    var(--surface-glass);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -31,8 +36,10 @@
   align-items: center;
   gap: 8px;
   padding: 7px 13px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-soft);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.012)),
+    var(--surface-soft);
   color: var(--text-bright);
   border: 1px solid var(--border);
   font-size: 0.82rem;
@@ -57,8 +64,8 @@
 .lp-toc-link {
   font-size: 0.78rem;
   color: var(--text-muted);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
+  padding: 7px 11px;
+  border-radius: 999px;
   transition: all 0.15s;
   text-decoration: none;
 }
@@ -135,11 +142,13 @@
   display: grid;
   place-items: center;
   padding: 18px;
-  border-radius: var(--radius-lg);
+  border-radius: 24px;
   background:
+    var(--surface-aura),
     radial-gradient(ellipse at center, rgba(74,144,217,0.08), transparent 65%),
     var(--bg-panel);
   border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lift);
 }
 
 .lp-diorama-copy h3 {
@@ -184,7 +193,7 @@
 
 /* ─── Section heading ─── */
 .lp-section {
-  max-width: 1080px;
+  max-width: 1220px;
   margin: 0 auto;
   padding: 40px 28px;
 }
@@ -196,6 +205,94 @@
   margin-bottom: 22px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+[data-theme="light"] .lp-aura-board-wrap,
+[data-theme="light"] .lp-back-btn {
+  border-color: rgba(82, 70, 53, 0.14);
+}
+
+[data-theme="light"] .lp-back-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,241,232,0.9));
+}
+
+[data-theme="light"] .lp-page {
+  background:
+    radial-gradient(circle at 10% 6%, rgba(125, 196, 53, 0.1), transparent 28rem),
+    radial-gradient(circle at 88% 12%, rgba(218, 160, 64, 0.09), transparent 26rem),
+    linear-gradient(180deg, #fffaf1, #f7efe2);
+}
+
+[data-theme="light"] .lp-aura-board-wrap,
+[data-theme="light"] .lp-scenario-stage,
+[data-theme="light"] .lp-scenario-side,
+[data-theme="light"] .lp-puzzle,
+[data-theme="light"] .lp-gloss,
+[data-theme="light"] .lp-outro {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(125,196,53,0.1), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,240,222,0.94));
+  border-color: rgba(98, 78, 48, 0.14);
+  box-shadow: 0 16px 36px rgba(76, 58, 34, 0.1);
+}
+
+[data-theme="light"] .lp-hero-lede,
+[data-theme="light"] .lp-diorama-copy p,
+[data-theme="light"] .lp-scenario-intro,
+[data-theme="light"] .lp-step-desc,
+[data-theme="light"] .lp-puzzle-hint,
+[data-theme="light"] .lp-gloss p,
+[data-theme="light"] .lp-outro-text {
+  color: #5f5345;
+}
+
+[data-theme="light"] .lp-step,
+[data-theme="light"] .lp-choice,
+[data-theme="light"] .lp-scrub-btn,
+[data-theme="light"] .lp-btn-ghost {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,238,220,0.92));
+  border-color: rgba(98, 78, 48, 0.14);
+  color: #2a241a;
+}
+
+.lp-tab,
+.lp-choice,
+.lp-scrub-btn,
+.lp-btn-primary,
+.lp-btn-ghost {
+  font-family: var(--font-body);
+  min-height: 36px;
+  line-height: 1.2;
+}
+
+.lp-scrub-btn:disabled {
+  opacity: 0.62;
+}
+
+[data-theme="light"] .lp-scrub-btn:disabled {
+  opacity: 1;
+  color: #9a8c78;
+  background: rgba(239, 229, 211, 0.78);
+}
+
+[data-theme="light"] .lp-hero h1,
+[data-theme="light"] .lp-diorama-copy h3,
+[data-theme="light"] .lp-section-head h2,
+[data-theme="light"] .lp-scenario-title,
+[data-theme="light"] .lp-scenario-h,
+[data-theme="light"] .lp-puzzle-q,
+[data-theme="light"] .lp-gloss h4 {
+  color: #1e160b;
+}
+
+[data-theme="light"] .lp-hero-eyebrow,
+[data-theme="light"] .lp-section-num,
+[data-theme="light"] .lp-pill,
+[data-theme="light"] .lp-puzzle-tag,
+[data-theme="light"] .lp-gloss-mark {
+  color: #3f7512;
 }
 .lp-section-num {
   font-family: var(--font-mono);
@@ -318,7 +415,7 @@
 /* ─── Scenario Player ─── */
 .lp-scenario {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(540px, 1.18fr) minmax(360px, 1fr);
   gap: 28px;
   align-items: stretch;
 }
@@ -331,6 +428,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
   padding: 22px;
   border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--surface-soft), transparent), var(--bg-panel);
@@ -339,39 +437,71 @@
 
 .lp-tabbar {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   padding: 4px;
   background: var(--surface-inset);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 .lp-tab {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: max-content;
   padding: 8px 12px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
   border-radius: var(--radius-sm);
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   cursor: pointer;
+  overflow: visible;
 }
 .lp-tab-num {
   font-family: var(--font-mono);
-  font-size: 0.66rem;
-  opacity: 0.6;
+  font-size: 0.68rem;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  color: var(--text-dim);
+  letter-spacing: 0.01em;
 }
-.lp-tab:hover { color: var(--text-bright); }
+.lp-tab:hover {
+  color: var(--text-bright);
+  background: rgba(255,255,255,0.07);
+}
 .lp-tab.active {
   color: var(--text-bright);
   background: var(--bg-panel-raised);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 -2px 0 var(--accent), inset 0 1px 0 rgba(255,255,255,0.07);
 }
-.lp-tab.active .lp-tab-num { color: var(--accent-bright); opacity: 1; }
+.lp-tab.active .lp-tab-num {
+  color: var(--accent-bright);
+}
+
+[data-theme="light"] .lp-tab {
+  color: #4a3f2f;
+  background: rgba(255,255,255,0.55);
+  border-color: rgba(98,78,48,0.11);
+}
+[data-theme="light"] .lp-tab:hover {
+  color: #211d16;
+  background: rgba(255,255,255,0.85);
+}
+[data-theme="light"] .lp-tab.active {
+  color: #211d16;
+  background: rgba(255,255,255,0.98);
+  box-shadow: inset 0 -2px 0 var(--accent), inset 0 1px 0 rgba(255,255,255,1);
+}
+[data-theme="light"] .lp-tab .lp-tab-num { color: #7b6f5e; }
+[data-theme="light"] .lp-tab.active .lp-tab-num { color: var(--accent); }
 
 .lp-scenario-board-wrap {
   position: relative;
@@ -386,6 +516,11 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  padding: 22px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--surface-soft), transparent), var(--bg-panel);
+  border: 1px solid var(--border-subtle);
 }
 
 .lp-scenario-title {
@@ -459,7 +594,8 @@
 .lp-step-body { padding-top: 2px; }
 .lp-step-title {
   font-size: 0.92rem;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   margin-bottom: 2px;
 }
 .lp-step.active .lp-step-title { color: var(--text-bright); }
@@ -723,3 +859,524 @@
   to   { opacity: 1; }
 }
 .lp-fade-in { animation: lp-fade-in 0.3s ease both; }
+
+/* ─── Final polish layer ─── */
+.lp-page {
+  color: var(--text-primary);
+  background:
+    radial-gradient(circle at 10% 6%, rgba(125,196,53,0.08), transparent 28rem),
+    radial-gradient(circle at 88% 12%, rgba(218,160,64,0.07), transparent 26rem),
+    linear-gradient(180deg, var(--bg-body), var(--bg-page));
+}
+
+.lp-header {
+  min-height: 64px;
+  border-bottom-color: color-mix(in srgb, var(--border-subtle) 78%, rgba(125,196,53,0.18));
+  box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+}
+
+.lp-back-btn,
+.lp-toc-link,
+.lp-tab,
+.lp-scrub-btn,
+.lp-btn-primary,
+.lp-btn-ghost,
+.lp-choice {
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lp-back-btn:hover,
+.lp-toc-link:hover,
+.lp-tab:hover,
+.lp-scrub-btn:hover,
+.lp-btn-primary:hover,
+.lp-btn-ghost:hover,
+.lp-choice:hover {
+  transform: translateY(-2px);
+}
+
+.lp-section,
+.lp-outro {
+  width: min(1220px, 100%);
+  max-width: 1220px;
+}
+
+.lp-scenario-stage,
+.lp-scenario-side,
+.lp-puzzle,
+.lp-gloss,
+.lp-outro,
+.lp-aura-board-wrap {
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 9% 0%, rgba(125,196,53,0.12), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.018)),
+    var(--bg-panel);
+  border-color: color-mix(in srgb, var(--border-subtle) 74%, rgba(125,196,53,0.22));
+}
+
+.lp-tabbar {
+  gap: 8px;
+  padding: 8px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.018)),
+    var(--surface-soft);
+}
+
+.lp-tab {
+  min-height: 46px;
+  border-radius: 14px;
+  border-color: color-mix(in srgb, var(--border-subtle) 76%, rgba(125,196,53,0.18));
+}
+
+.lp-tab.active {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    0 10px 22px rgba(0,0,0,0.12);
+}
+
+.lp-step {
+  border-radius: 18px;
+  padding-inline: 12px;
+}
+
+.lp-step-num,
+.lp-gloss-mark {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-bright) 12%, transparent);
+}
+
+.lp-puzzle,
+.lp-gloss {
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease,
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lp-puzzle:hover,
+.lp-gloss:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border-subtle));
+}
+
+.lp-scenario-h,
+.lp-step-title,
+.lp-puzzle-q,
+.lp-gloss h3 {
+  color: var(--text-bright);
+}
+
+[data-theme="light"] .lp-step {
+  color: #302719;
+}
+
+[data-theme="light"] .lp-step-title,
+[data-theme="light"] .lp-puzzle-q,
+[data-theme="light"] .lp-gloss h3 {
+  color: #171009;
+}
+
+[data-theme="light"] .lp-header {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.94), rgba(247,238,221,0.84));
+  border-bottom-color: rgba(116,94,58,0.16);
+}
+
+[data-theme="light"] .lp-scenario-stage,
+[data-theme="light"] .lp-scenario-side,
+[data-theme="light"] .lp-puzzle,
+[data-theme="light"] .lp-gloss,
+[data-theme="light"] .lp-outro,
+[data-theme="light"] .lp-aura-board-wrap {
+  background:
+    radial-gradient(circle at 9% 0%, rgba(125,196,53,0.13), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,0.99), rgba(249,240,222,0.93));
+  border-color: rgba(116,94,58,0.15);
+}
+
+[data-theme="light"] .lp-tabbar {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,240,224,0.86));
+  border-color: rgba(116,94,58,0.14);
+}
+
+[data-theme="light"] .lp-tab.active,
+[data-theme="light"] .lp-choice.correct {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 10px 22px rgba(76,58,34,0.08);
+}
+
+@media (max-width: 980px) {
+  .lp-section {
+    padding-inline: 18px;
+  }
+
+  .lp-scenario {
+    gap: 18px;
+  }
+}
+
+/* Final page polish: connect Learn to the main app surface language. */
+.lp-header {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 12px 28px rgba(0,0,0,0.12);
+}
+
+.lp-hero {
+  position: relative;
+}
+
+.lp-hero::before {
+  content: '';
+  position: absolute;
+  inset: 42px 28px auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 32%, transparent), transparent);
+  opacity: 0.72;
+}
+
+.lp-hero h1 {
+  text-wrap: balance;
+}
+
+.lp-hero-lede,
+.lp-diorama-copy p,
+.lp-step p,
+.lp-puzzle-a,
+.lp-gloss p {
+  color: color-mix(in srgb, var(--text-muted) 86%, var(--text-bright));
+}
+
+.lp-aura-board-wrap,
+.lp-scenario-stage,
+.lp-scenario-side,
+.lp-puzzle,
+.lp-gloss,
+.lp-outro {
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 18px 42px rgba(0,0,0,0.14);
+}
+
+.lp-aura-board-wrap::after,
+.lp-scenario-stage::after,
+.lp-scenario-side::after,
+.lp-puzzle::after,
+.lp-gloss::after,
+.lp-outro::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 -38px 70px rgba(0,0,0,0.055);
+}
+
+.lp-tab,
+.lp-choice,
+.lp-btn-primary,
+.lp-btn-ghost {
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 220ms ease,
+    color 180ms ease;
+}
+
+.lp-tab:hover,
+.lp-choice:hover,
+.lp-btn-primary:hover,
+.lp-btn-ghost:hover {
+  transform: translateY(-1px);
+}
+
+.lp-choice.correct,
+.lp-tab.active {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--border-subtle));
+}
+
+.lp-step {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 4px 12px rgba(0,0,0,0.07);
+}
+
+.lp-section-head {
+  border-bottom-color: color-mix(in srgb, var(--border-subtle) 74%, rgba(125,196,53,0.18));
+}
+
+[data-theme="light"] .lp-header {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.86),
+    0 10px 24px rgba(76,58,34,0.1);
+}
+
+[data-theme="light"] .lp-hero::before {
+  background: linear-gradient(90deg, transparent, rgba(79,133,25,0.22), transparent);
+}
+
+[data-theme="light"] .lp-hero-lede,
+[data-theme="light"] .lp-diorama-copy p,
+[data-theme="light"] .lp-step p,
+[data-theme="light"] .lp-puzzle-a,
+[data-theme="light"] .lp-gloss p {
+  color: #665947;
+}
+
+[data-theme="light"] .lp-aura-board-wrap,
+[data-theme="light"] .lp-scenario-stage,
+[data-theme="light"] .lp-scenario-side,
+[data-theme="light"] .lp-puzzle,
+[data-theme="light"] .lp-gloss,
+[data-theme="light"] .lp-outro {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.82),
+    0 14px 28px rgba(76,58,34,0.09);
+}
+
+[data-theme="light"] .lp-aura-board-wrap::after,
+[data-theme="light"] .lp-scenario-stage::after,
+[data-theme="light"] .lp-scenario-side::after,
+[data-theme="light"] .lp-puzzle::after,
+[data-theme="light"] .lp-gloss::after,
+[data-theme="light"] .lp-outro::after {
+  box-shadow: inset 0 -38px 70px rgba(76,58,34,0.035);
+}
+
+@media (max-width: 720px) {
+  .lp-header {
+    padding-inline: 16px;
+  }
+
+  .lp-hero {
+    padding-inline: 18px;
+    padding-top: 42px;
+  }
+
+  .lp-hero::before {
+    inset-inline: 18px;
+    top: 24px;
+  }
+
+  .lp-section {
+    padding-block: 28px;
+  }
+
+  .lp-tabbar {
+    overflow-x: auto;
+  }
+}
+
+/* Detail polish: lesson interiors, puzzle controls, and progress feel more tactile. */
+.lp-page {
+  scroll-padding-top: 84px;
+}
+
+.lp-header {
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.lp-back-btn,
+.lp-toc-link {
+  border-radius: 999px;
+}
+
+.lp-tabbar {
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    0 10px 24px rgba(0,0,0,0.1);
+}
+
+.lp-tabbar::after {
+  content: '';
+  position: absolute;
+  inset: auto 18px 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 36%, transparent), transparent);
+}
+
+.lp-tab {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-tab::after {
+  content: '';
+  position: absolute;
+  inset: auto 14px 6px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--accent-bright), transparent);
+  opacity: 0;
+  transform: scaleX(0.44);
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lp-tab:hover::after,
+.lp-tab.active::after {
+  opacity: 0.8;
+  transform: scaleX(1);
+}
+
+.lp-scenario-board-wrap,
+.lp-puzzle-board-wrap {
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(125,196,53,0.08), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012));
+}
+
+.lp-step {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-step::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent, rgba(255,255,255,0.045), transparent);
+  opacity: 0;
+  transform: translateX(-24%);
+  transition:
+    opacity 180ms ease,
+    transform 360ms ease;
+}
+
+.lp-step:hover::after,
+.lp-step.active::after {
+  opacity: 1;
+  transform: translateX(24%);
+}
+
+.lp-step-num,
+.lp-pill,
+.lp-puzzle-tag,
+.lp-gloss-mark {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 4px 10px rgba(0,0,0,0.08);
+}
+
+.lp-scrubber {
+  padding-top: 8px;
+}
+
+.lp-scrub-progress {
+  overflow: hidden;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.022));
+}
+
+.lp-scrub-progress-fill {
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent-bright) 44%, transparent);
+}
+
+.lp-choice {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-choice::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 100% 0%, rgba(125,196,53,0.13), transparent 42%);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.lp-choice:hover::before,
+.lp-choice.correct::before {
+  opacity: 1;
+}
+
+.lp-puzzle-feedback {
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+}
+
+.lp-gloss {
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease,
+    box-shadow 220ms ease;
+}
+
+[data-theme="light"] .lp-tabbar {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.84),
+    0 8px 18px rgba(76,58,34,0.08);
+}
+
+[data-theme="light"] .lp-tabbar::after {
+  background: linear-gradient(90deg, transparent, rgba(79,133,25,0.22), transparent);
+}
+
+[data-theme="light"] .lp-scenario-board-wrap,
+[data-theme="light"] .lp-puzzle-board-wrap {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(125,196,53,0.1), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,240,225,0.76));
+}
+
+[data-theme="light"] .lp-step::after {
+  background: linear-gradient(110deg, transparent, rgba(255,255,255,0.48), transparent);
+}
+
+[data-theme="light"] .lp-step-num,
+[data-theme="light"] .lp-pill,
+[data-theme="light"] .lp-puzzle-tag,
+[data-theme="light"] .lp-gloss-mark {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.82),
+    0 3px 8px rgba(76,58,34,0.07);
+}
+
+[data-theme="light"] .lp-scrub-progress {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,229,211,0.82));
+}
+
+[data-theme="light"] .lp-choice::before {
+  background: radial-gradient(circle at 100% 0%, rgba(125,196,53,0.14), transparent 42%);
+}
+
+@media (max-width: 720px) {
+  .lp-tab {
+    min-width: max-content;
+  }
+
+  .lp-scrubber {
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-tab::after,
+  .lp-step::after,
+  .lp-choice::before,
+  .lp-gloss {
+    transition: none;
+  }
+}

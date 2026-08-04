@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&display=swap');
 
 *, *::before, *::after {
   margin: 0;
@@ -20,6 +20,8 @@
   --surface-hover:    rgba(255,255,255,0.08);
   --surface-inset:    rgba(0,0,0,0.26);
   --surface-glass:    rgba(15,14,13,0.9);
+  --surface-card:     linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018));
+  --surface-aura:     radial-gradient(circle at 12% 0%, rgba(125,196,53,0.16), transparent 36%);
 
   /* ── Text ── */
   --text-primary:     #c4c1bc;
@@ -51,6 +53,7 @@
   --shadow-md:        0 4px 16px rgba(0,0,0,0.5);
   --shadow-lg:        0 12px 40px rgba(0,0,0,0.65);
   --shadow-board:     0 0 0 1px rgba(0,0,0,0.5), 0 8px 48px rgba(0,0,0,0.7);
+  --shadow-lift:      0 18px 46px rgba(0,0,0,0.3);
 
   /* ── Radii ── */
   --radius-xs:        3px;
@@ -60,8 +63,9 @@
   --radius-xl:        20px;
 
   /* ── Typography ── */
-  --font-body:        'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono:        'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  --font-body:        'Fraunces', Georgia, serif;
+  --font-display:     'Fraunces', Georgia, serif;
+  --font-mono:        'Fraunces', Georgia, serif;
 
   /* ── Transitions ── */
   --transition-fast:  0.1s ease;
@@ -72,24 +76,26 @@
 [data-theme="light"] {
   color-scheme: light;
   /* ── Surfaces ── */
-  --bg-body:          #f5f4f2;
-  --bg-page:          #ffffff;
-  --bg-panel:         #f0ede9;
-  --bg-panel-raised:  #e8e4df;
-  --bg-panel-hover:   #e2ddd8;
-  --bg-input:         #faf9f7;
-  --bg-header:        #f5f4f2;
-  --surface-soft:     rgba(55,46,35,0.055);
-  --surface-hover:    rgba(55,46,35,0.095);
-  --surface-inset:    rgba(55,46,35,0.07);
-  --surface-glass:    rgba(255,255,255,0.88);
+  --bg-body:          #fbf7ee;
+  --bg-page:          #fffdf8;
+  --bg-panel:         #fffaf1;
+  --bg-panel-raised:  #f7efe1;
+  --bg-panel-hover:   #efe4d2;
+  --bg-input:         #fffdf8;
+  --bg-header:        #fff9ee;
+  --surface-soft:     rgba(88,70,42,0.065);
+  --surface-hover:    rgba(88,70,42,0.12);
+  --surface-inset:    rgba(88,70,42,0.075);
+  --surface-glass:    rgba(255,249,238,0.9);
+  --surface-card:     linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,241,224,0.94));
+  --surface-aura:     radial-gradient(circle at 12% 0%, rgba(79,133,25,0.15), transparent 38%);
 
   /* ── Text ── */
-  --text-primary:     #2c2a27;
-  --text-bright:      #111009;
-  --text-white:       #1a1814;
-  --text-dim:         #77726d;
-  --text-muted:       #6a6865;
+  --text-primary:     #2a241a;
+  --text-bright:      #130f08;
+  --text-white:       #161109;
+  --text-dim:         #7b6f5e;
+  --text-muted:       #5d5346;
   --text-link:        #2e7ab0;
 
   /* ── Accent ── */
@@ -100,14 +106,15 @@
   --accent-glow:      rgba(79, 133, 25, 0.07);
 
   /* ── Borders ── */
-  --border:           #d0cdc9;
-  --border-subtle:    #e0ddd8;
+  --border:           #d4c6af;
+  --border-subtle:    #e5d8c3;
 
   /* ── Shadows ── */
-  --shadow-sm:        0 1px 3px rgba(0,0,0,0.12);
-  --shadow-md:        0 4px 16px rgba(0,0,0,0.15);
-  --shadow-lg:        0 12px 40px rgba(0,0,0,0.2);
-  --shadow-board:     0 0 0 1px rgba(0,0,0,0.15), 0 8px 48px rgba(0,0,0,0.2);
+  --shadow-sm:        0 1px 3px rgba(76, 58, 34, 0.1);
+  --shadow-md:        0 8px 22px rgba(76, 58, 34, 0.13);
+  --shadow-lg:        0 18px 50px rgba(76, 58, 34, 0.18);
+  --shadow-board:     0 0 0 1px rgba(82, 63, 37, 0.16), 0 14px 52px rgba(76, 58, 34, 0.18);
+  --shadow-lift:      0 18px 44px rgba(76, 58, 34, 0.14);
 }
 
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: #c8c5c1; }
@@ -115,7 +122,10 @@
 
 body {
   font-family: var(--font-body);
-  background: var(--bg-body);
+  background:
+    radial-gradient(circle at 8% 8%, rgba(125, 196, 53, 0.06), transparent 28rem),
+    radial-gradient(circle at 92% 12%, rgba(219, 168, 75, 0.05), transparent 24rem),
+    var(--bg-body);
   color: var(--text-primary);
   min-height: 100vh;
   font-size: 14px;

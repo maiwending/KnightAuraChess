@@ -19,6 +19,7 @@ import {
 } from './utils/boardHandAnimation.js';
 import { db, firebaseEnabled } from './utils/firebase.js';
 import { DEFAULT_VARIANT_RULES, normalizeVariantRules } from './utils/variantRules.js';
+import { isBotUid } from './utils/textAi.js';
 import './App.css';
 const UserProfileModal = React.lazy(() => import('./components/UserProfileModal.jsx'));
 
@@ -145,8 +146,6 @@ export default function App() {
     setPieceStyle,
     showEmpoweredMarks,
     setShowEmpoweredMarks,
-    liveVoiceChat,
-    setLiveVoiceChat,
     seasonalDecorations,
     setSeasonalDecorations,
     seasonalDecorationDensity,
@@ -164,10 +163,11 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [profileModalUid, setProfileModalUid] = useState(null);
   const [pendingDm, setPendingDm] = useState(null);
+  const [pendingChallengeTarget, setPendingChallengeTarget] = useState(null);
   const [moveTimestamps, setMoveTimestamps] = useState([{ white: 0, black: 0 }]);
   const [currentMoveStartTime, setCurrentMoveStartTime] = useState(Date.now());
   const [selectedTimeControl, setSelectedTimeControl] = useState(DEFAULT_TIME_CONTROL);
-  const [setupVariantRules, setSetupVariantRules] = useState(loadVariantRules);
+  const [setupVariantRules] = useState(loadVariantRules);
   const [clockWhite, setClockWhite] = useState(null);
   const [clockBlack, setClockBlack] = useState(null);
   const [localResult, setLocalResult] = useState(null);
@@ -312,6 +312,7 @@ export default function App() {
     gameRef,
     lastAnimatedMoveRef,
     hasLoadedOnlineGameRef,
+    setupVariantRules,
   });
 
   const playerColor = useMemo(() => {
@@ -344,6 +345,7 @@ export default function App() {
     selectedTimeControl,
     botPool: BOT_POOL,
     displayName,
+    rating,
     incomingChallenge,
     variantRules: setupVariantRules,
   });
@@ -362,6 +364,7 @@ export default function App() {
     toggleReady,
     handleTimeout,
     handleChallengeFriend,
+    challengeBot,
     acceptChallenge,
     declineChallenge,
     cancelMatchmaking,
@@ -416,6 +419,31 @@ export default function App() {
     setSetupModalOpen,
     setupVariantRules,
   });
+
+  const openChallengeSetup = useCallback((uid, name) => {
+    if (!uid) return;
+    setPendingChallengeTarget({ uid, name: name || 'Player' });
+    setSetupModalOpen(true);
+  }, []);
+
+  const closeSetup = useCallback(() => {
+    setPendingChallengeTarget(null);
+    closeSetupModal();
+  }, [closeSetupModal]);
+
+  const startChallengeFromSetup = useCallback(async () => {
+    if (!pendingChallengeTarget) {
+      await createCustomGame();
+      return;
+    }
+    if (isBotUid(pendingChallengeTarget.uid)) {
+      await challengeBot(pendingChallengeTarget.uid, pendingChallengeTarget.name);
+    } else {
+      await handleChallengeFriend(pendingChallengeTarget.uid, pendingChallengeTarget.name);
+    }
+    setPendingChallengeTarget(null);
+    setSetupModalOpen(false);
+  }, [challengeBot, createCustomGame, handleChallengeFriend, pendingChallengeTarget]);
 
   const handleEmailAuth = useCallback(async () => {
     if (!authEmail.trim() || !authPassword.trim()) {
@@ -549,6 +577,7 @@ export default function App() {
   };
 
   const isGameOver = () => {
+    if (isOnline && ['completed', 'draw', 'abandoned'].includes(gameData?.status)) return true;
     return localResult || game.getWinnerByKingCapture() || game.isCheckmateRider() || game.isStalemateRider();
   };
 
@@ -702,8 +731,10 @@ export default function App() {
     onChoosePromotion: handlePromotionChoice,
     onCancelPromotion: () => setPendingPromotion(null),
     onFlipBoard: () => setFlipped(!flipped),
-    onOpenSetup: () => setSetupModalOpen(true),
-    onNewGame: resetPractice,
+    onOpenSetup: () => {
+      setPendingChallengeTarget(null);
+      setSetupModalOpen(true);
+    },
     onStopAi: () => {
       setAiEnabled(false);
       resetPractice();
@@ -717,11 +748,11 @@ export default function App() {
     gameId,
     user,
     displayName,
-    liveVoiceChat,
     setupModalProps: {
       isOpen: setupModalOpen,
-      onClose: closeSetupModal,
+      onClose: closeSetup,
       user,
+      challengeTarget: pendingChallengeTarget,
       timeControls: TIME_CONTROLS,
       selectedTimeControl,
       onSelectTimeControl: handleSelectTimeControl,
@@ -730,14 +761,19 @@ export default function App() {
       aiDifficulty,
       aiDifficultyLevels: AI_DIFFICULTY_LEVELS,
       onSelectAiDifficulty: setAiDifficulty,
-      variantRules: setupVariantRules,
-      onToggleVariantRule: (rule) => setSetupVariantRules((current) => ({
-        ...current,
-        [rule]: !current[rule],
-      })),
-      onStartPractice: handleStartPracticeFromSetup,
-      onStartAi: handleStartAiFromSetup,
-      onStartOnline: handleStartOnlineFromSetup,
+      onStartPractice: () => {
+        setPendingChallengeTarget(null);
+        return handleStartPracticeFromSetup();
+      },
+      onStartAi: () => {
+        setPendingChallengeTarget(null);
+        return handleStartAiFromSetup();
+      },
+      onStartOnline: () => {
+        setPendingChallengeTarget(null);
+        return handleStartOnlineFromSetup();
+      },
+      onStartCustomGame: startChallengeFromSetup,
       isOnline,
     },
   };
@@ -789,7 +825,10 @@ export default function App() {
     gamesProps: {
       user,
       isOnline,
-      createCustomGame,
+      createCustomGame: () => {
+        setPendingChallengeTarget(null);
+        setSetupModalOpen(true);
+      },
       joinGameId,
       setJoinGameId,
       joinCustomGame,
@@ -814,8 +853,6 @@ export default function App() {
       setBoardView,
       boardCornerRadius,
       setBoardCornerRadius,
-      liveVoiceChat,
-      setLiveVoiceChat,
       seasonalDecorations,
       setSeasonalDecorations,
       seasonalDecorationDensity,
@@ -834,7 +871,7 @@ export default function App() {
         onPlayerClick: (player) => setProfileModalUid(player.id),
       pendingDm,
       onPendingDmHandled: () => setPendingDm(null),
-      onChallengeFriend: handleChallengeFriend,
+      onChallengeFriend: openChallengeSetup,
     },
   };
 
@@ -846,6 +883,7 @@ export default function App() {
         profile={profile}
         displayName={displayName}
         rating={rating}
+        onHome={() => navigateToPage('home')}
         onOpenProfile={() => setProfileModalUid(user.uid)}
         onOpenSignIn={() => navigateToPage('signin')}
         onSignOut={signOut}
@@ -882,6 +920,10 @@ export default function App() {
               setPendingDm({ chatId, partnerUid, partnerName });
               setProfileModalUid(null);
               setActiveTab('social');
+            }}
+            onChallengePlayer={(uid, name) => {
+              openChallengeSetup(uid, name);
+              setProfileModalUid(null);
             }}
           />
         </Suspense>

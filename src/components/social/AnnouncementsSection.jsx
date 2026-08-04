@@ -75,7 +75,6 @@ export default function AnnouncementsSection({ currentUser, currentUserName, cur
             authorName: speaker.name,
             authorPhotoURL: null,
             createdAt: serverTimestamp(),
-            isBot: true,
           });
           window.localStorage.setItem(BOT_LOBBY_LAST_KEY, String(Date.now()));
         } catch {
@@ -161,7 +160,9 @@ export default function AnnouncementsSection({ currentUser, currentUserName, cur
           </button>
         </div>
       ) : (
-        <p className="muted" style={{ fontSize: '0.85rem' }}>Sign in to post announcements.</p>
+        <p className="muted" style={{ fontSize: '0.85rem' }}>
+          Read-only view. Sign in to post announcements.
+        </p>
       )}
     </div>
   );

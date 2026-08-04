@@ -77,23 +77,177 @@ cd KnightAuraChess
 
 # Use the repo's Node version
 nvm use
+```
 
-# Install dependencies
+Run the guided setup script for your shell:
+
+```bash
+./setup.sh
+```
+
+```powershell
+.\setup.ps1
+```
+
+The setup scripts:
+- prompt for Firebase, Cloudflare, and optional backend values
+- write a local `.env`
+- install npm dependencies if you choose
+- validate the Cloudflare Pages + Workers AI config
+- optionally run a production build
+
+Setup implementation files live in `setup/`; only the root `setup.sh` and `setup.ps1` launchers stay outside the folder.
+
+Manual fallback:
+
+```bash
 npm install
-
-# Create a local environment file
 touch .env
 ```
 
 Add your Firebase configuration to `.env`:
+
 ```env
-VITE_FIREBASE_API_KEY="your_api_key_here"
-VITE_FIREBASE_AUTH_DOMAIN="your_project_id.firebaseapp.com"
 VITE_FIREBASE_PROJECT_ID="your_project_id"
-VITE_FIREBASE_STORAGE_BUCKET="your_project_id.appspot.com"
-VITE_FIREBASE_MESSAGING_SENDER_ID="your_sender_id"
-VITE_FIREBASE_APP_ID="your_app_id"
+VITE_FIREBASE_API_KEY="your_web_api_key_here"
 ```
+
+The app auto-fills the normal Firebase Auth domain and Storage bucket from `VITE_FIREBASE_PROJECT_ID`.
+
+## 🔥 Firebase Setup From Scratch
+
+Follow these steps if you are making a new Firebase backend for the app.
+
+### 1. Create a Firebase project
+
+1. Go to [Firebase Console](https://console.firebase.google.com/).
+2. Click **Add project**.
+3. Enter a project name, for example `knightaurachess`.
+4. Choose whether to enable Google Analytics. The app does not require Analytics.
+5. Click **Create project**.
+
+### 2. Add a web app
+
+1. Open your new Firebase project.
+2. Click the web icon: `</>`.
+3. Register the app with a nickname, for example `KnightAuraChess Web`.
+4. You do not need Firebase Hosting for local development.
+5. Copy the project id and web API key from the Firebase config.
+
+Put those values in `.env`:
+
+```env
+VITE_FIREBASE_PROJECT_ID="your-project-id"
+VITE_FIREBASE_API_KEY="..."
+```
+
+The app auto-configures:
+
+```text
+authDomain    -> your-project-id.firebaseapp.com
+storageBucket -> your-project-id.appspot.com
+```
+
+If Firebase gives you custom values, or you prefer pasting the full web config, use:
+
+```env
+VITE_FIREBASE_CONFIG='{"apiKey":"...","authDomain":"your-project-id.firebaseapp.com","projectId":"your-project-id","storageBucket":"your-project-id.appspot.com","messagingSenderId":"...","appId":"..."}'
+```
+
+Individual `VITE_FIREBASE_*` values override `VITE_FIREBASE_CONFIG`.
+
+Restart `npm run dev` after editing `.env`.
+
+### 3. Enable Authentication
+
+1. In Firebase Console, go to **Build** -> **Authentication**.
+2. Click **Get started**.
+3. Open the **Sign-in method** tab.
+4. Enable **Anonymous** sign-in.
+5. Enable **Google** sign-in.
+6. Add a project support email when Firebase asks for one.
+7. Click **Save**.
+
+For deployed sites, also add your domains under **Authentication** -> **Settings** -> **Authorized domains**. Include any domains you use, such as:
+
+```text
+localhost
+bobwdmai.github.io
+knightaurachess.com
+www.knightaurachess.com
+```
+
+### 4. Create Firestore
+
+1. In Firebase Console, go to **Build** -> **Firestore Database**.
+2. Click **Create database**.
+3. Choose **Production mode**.
+4. Pick a region close to your players.
+5. Click **Enable**.
+
+The app creates documents as players use features. You do not need to manually create collections first.
+
+Main collections used by the app:
+
+```text
+users
+games
+dms
+friend_requests
+game_challenges
+announcements
+community_puzzles
+puzzle_creators
+mail
+```
+
+### 5. Install and log in to Firebase CLI
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase use --add
+```
+
+When prompted, select your Firebase project and give it an alias such as `default`.
+
+### 6. Deploy Firestore rules
+
+This repository already includes [firestore.rules](./firestore.rules).
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+These rules are required for online games, chat, profiles, friends, community puzzles, and puzzle ratings.
+
+### 7. Optional: test rules locally
+
+```bash
+npm run test:rules:emulator
+```
+
+This starts the Firestore emulator and runs the repository's security-rule tests.
+
+### 8. Optional: service account for server move API
+
+Only do this if you are using the Cloudflare `/api/move` backend.
+
+1. In Firebase Console, open **Project settings**.
+2. Go to **Service accounts**.
+3. Click **Generate new private key**.
+4. Store the service-account email and private key as deployment secrets, not in git.
+
+Use these backend env names:
+
+```env
+FIREBASE_PROJECT_ID="your-project-id"
+FIREBASE_WEB_API_KEY="your-web-api-key"
+FIREBASE_SERVICE_ACCOUNT_EMAIL="firebase-adminsdk-...@your-project-id.iam.gserviceaccount.com"
+FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+Never commit real Firebase keys, service-account private keys, or `.env`.
 
 ### Running the App
 ```bash
@@ -109,7 +263,7 @@ Firestore rules are part of the app. After changing [firestore.rules](./firestor
 firebase deploy --only firestore:rules
 ```
 
-This is required for online features such as game chat and peer voice signaling.
+This is required for online features such as game chat, profiles, friends, and match history.
 
 ## 🧭 Authoritative Move API (Rollout)
 
@@ -170,24 +324,34 @@ Browser chat now defaults to same-origin `/api/text-ai` on:
 - `https://knightaurachess.com`
 - `https://www.knightaurachess.com`
 
-Configure Cloudflare Function env vars:
+Cloudflare defaults are already in `wrangler.toml`:
 
-```env
-TEXT_AI_MODEL="@cf/meta/llama-3-8b-instruct"
+```toml
+name = "knightaurachess"
+pages_build_output_dir = "./dist"
+
+[ai]
+binding = "knightaurachess"
 ```
 
 Route:
-- `functions/api/text-ai.js` can call Cloudflare Workers AI directly through an `AI` binding.
+- `functions/api/text-ai.js` calls Cloudflare Workers AI through the binding declared in `wrangler.toml`.
+- The backend auto-detects `knightaurachess`, `AI`, or `ai`, so dashboard-created bindings with common names still work.
+- `TEXT_AI_MODEL` defaults to `@cf/meta/llama-3-8b-instruct` if you do not set it.
 
 For production builds you can still override explicitly:
 
 ```env
 VITE_TEXT_AI_BASE_URL="/api/text-ai"
+TEXT_AI_MODEL="@cf/meta/llama-3-8b-instruct"
 ```
 
 Cloudflare deployment notes:
-- Add an AI binding named `AI` in your Cloudflare Pages project or Worker.
-- In Cloudflare Pages, add the Workers AI binding from the dashboard and redeploy.
+- The repo is pre-configured for Cloudflare Pages with `wrangler.toml`.
+- Workers AI binding name: `knightaurachess` by default.
+- `npm run validate:cloudflare` checks the Pages output directory and Workers AI binding before deploy.
+- GitHub Actions includes a manual **Deploy to Cloudflare Pages** workflow. Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub secrets, then run that workflow.
+- If Cloudflare does not pick up `wrangler.toml` for an existing Pages project, add the Workers AI binding manually once and redeploy.
 - If you prefer a proxy to another hosted LLM instead of Workers AI, keep `TEXT_AI_UPSTREAM_URL` and `TEXT_AI_UPSTREAM_AUTH_BEARER` configured as a fallback.
 
 ## 🚀 Deployment (Cloudflare Pages)
@@ -197,6 +361,29 @@ This project is configured for seamless deployment via Cloudflare Pages:
 1. Connect your Github repository to Cloudflare Pages.
 2. **Build command:** `npx vite build`
 3. **Build directory:** `dist`
-4. **Environment Variables:** Add all the `VITE_FIREBASE_*` variables from your `.env` file into the Cloudflare Pages settings.
+4. **Environment Variables:** Add at least `VITE_FIREBASE_PROJECT_ID` and `VITE_FIREBASE_API_KEY` to Cloudflare Pages. Add `VITE_FIREBASE_CONFIG` or explicit `VITE_FIREBASE_*` overrides only if your Firebase project uses custom values.
+5. **Workers AI binding:** already declared in `wrangler.toml` as `knightaurachess`.
 
-Cloudflare will automatically build and deploy your app every time you push to the `main` branch!
+Manual Cloudflare setup, only if an existing Pages project ignores `wrangler.toml` bindings:
+
+1. Open Cloudflare Dashboard.
+2. Go to **Workers & Pages**.
+3. Open the **knightaurachess** Pages project.
+4. Go to **Settings**.
+5. Go to **Bindings**.
+6. Add a **Workers AI** binding.
+7. Set **Variable name** to `knightaurachess` (`AI` or `ai` also work because the backend auto-detects them).
+8. Save.
+9. Go to **Deployments**.
+10. Redeploy the latest production deployment.
+
+GitHub Actions setup:
+
+1. In GitHub, open the repository settings.
+2. Go to **Secrets and variables** → **Actions**.
+3. Add `CLOUDFLARE_ACCOUNT_ID`.
+4. Add `CLOUDFLARE_API_TOKEN` with Cloudflare Pages deploy permission.
+5. Open **Actions** → **Deploy to Cloudflare Pages**.
+6. Click **Run workflow**.
+
+If the Cloudflare Pages project is connected to GitHub, Cloudflare can automatically build and deploy on each `main` push. If you use the included GitHub Action instead, run **Deploy to Cloudflare Pages** manually after changing deployment secrets or Cloudflare config.

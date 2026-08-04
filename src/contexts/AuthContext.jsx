@@ -92,10 +92,13 @@ export function AuthProvider({ children }) {
         const profilePatch = {
           uid: user.uid,
           email: user.email || null,
-          photoURL: user.photoURL || null,
           isAnonymous: user.isAnonymous,
           updatedAt: serverTimestamp()
         };
+
+        if (!existing?.photoURL) {
+          profilePatch.photoURL = user.photoURL || null;
+        }
 
         if (!existing || typeof existing.rating !== 'number') {
           profilePatch.rating = 1200;

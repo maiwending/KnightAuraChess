@@ -5,6 +5,10 @@ function getDefaultTextAiBaseUrl() {
     return import.meta.env.VITE_TEXT_AI_BASE_URL;
   }
 
+  if (typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')) {
+    return 'https://knightaurachess.com/api/text-ai';
+  }
+
   return import.meta.env.VITE_TEXT_AI_PROXY_URL || '/api/text-ai';
 }
 
@@ -399,6 +403,8 @@ export async function requestTextAiReply({
   personaName = 'AI',
   personaAge = null,
   personaStyle = null,
+  conversationContext = '',
+  maxTokens = 20480,
 }) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
@@ -407,7 +413,7 @@ export async function requestTextAiReply({
     personaStyle ? `Your vibe is ${personaStyle}.` : null,
     'You talk like a real person with your own voice.',
   ].filter(Boolean).join(' ');
-  const personaLine = `Your name is ${personaName}. ${personaTraits}`.trim();
+  const personaLine = `Your name is ${personaName}. ${personaTraits} ${conversationContext}`.trim();
 
   try {
     const response = await fetch(baseUrl, {
@@ -422,7 +428,7 @@ export async function requestTextAiReply({
           { role: 'system', content: `${DEFAULT_TEXT_AI_SYSTEM_PROMPT} ${personaLine}`.trim() },
           ...history,
         ],
-        max_tokens: 20480,
+        max_tokens: maxTokens,
         temperature: 0.2,
         stream: false,
       }),

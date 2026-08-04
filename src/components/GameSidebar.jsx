@@ -49,6 +49,8 @@ export default function GameSidebar({
         {tabs.map((tab) => (
           <button
             key={tab.key}
+            type="button"
+            aria-label={tab.label}
             className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.key)}
           >
@@ -60,6 +62,8 @@ export default function GameSidebar({
           </button>
         ))}
         <button
+          type="button"
+          aria-label="Learn"
           className={`tab-btn ${currentPage === 'learn' || currentPage === 'tutorials' ? 'active' : ''}`}
           onClick={onOpenLearn}
         >
@@ -169,7 +173,7 @@ export default function GameSidebar({
             <div className="settings-hero">
               <div className="settings-hero__copy">
                 <span className="settings-hero__eyebrow">Visual Tuning</span>
-                <p className="settings-hero__title">Shape the board, pieces, and voice layer before you play.</p>
+                <p className="settings-hero__title">Shape the board, pieces, and atmosphere before you play.</p>
               </div>
               <div className="settings-hero__preview" aria-hidden="true">
                 <span className="settings-hero__preview-cell settings-hero__preview-cell--light" />
@@ -372,29 +376,6 @@ export default function GameSidebar({
 
             <div className="settings-section">
               <div className="settings-section-heading">
-                <span className="settings-section-label">Voice Chat</span>
-                <span className="settings-section-rail" aria-hidden="true" />
-              </div>
-              <div className="piece-set-grid">
-                <button
-                  className={`piece-set-btn${!settingsProps.liveVoiceChat ? ' active' : ''}`}
-                  onClick={() => settingsProps.setLiveVoiceChat(false)}
-                >
-                  <span className="piece-set-preview">🔇</span>
-                  Off
-                </button>
-                <button
-                  className={`piece-set-btn${settingsProps.liveVoiceChat ? ' active' : ''}`}
-                  onClick={() => settingsProps.setLiveVoiceChat(true)}
-                >
-                  <span className="piece-set-preview">🎤</span>
-                  Peer Voice
-                </button>
-              </div>
-            </div>
-
-            <div className="settings-section">
-              <div className="settings-section-heading">
                 <span className="settings-section-label">Seasonal Decorations</span>
                 <span className="settings-section-rail" aria-hidden="true" />
               </div>
@@ -447,16 +428,25 @@ export default function GameSidebar({
           </div>
         )}
 
-        {activeTab === 'rankings' && firebaseEnabled && (
-          <Suspense fallback={panelFallback}>
+        {activeTab === 'rankings' && (
+          firebaseEnabled ? (
+            <Suspense fallback={panelFallback}>
+              <div className="tab-panel">
+                <LeaderboardPanel
+                  currentUser={rankingsProps.user}
+                  onPlayerClick={rankingsProps.onPlayerClick}
+                  embedded
+                />
+              </div>
+            </Suspense>
+          ) : (
             <div className="tab-panel">
-              <LeaderboardPanel
-                currentUser={rankingsProps.user}
-                onPlayerClick={rankingsProps.onPlayerClick}
-                embedded
-              />
+              <h3>Rank</h3>
+              <p className="muted leaderboard-empty">
+                Rankings need Firebase to be configured. Once it is online, everyone can view the leaderboard.
+              </p>
             </div>
-          </Suspense>
+          )
         )}
 
         {activeTab === 'social' && (

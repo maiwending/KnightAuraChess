@@ -10,11 +10,20 @@ export default function AppHeader({
   onOpenProfile,
   onOpenSignIn,
   onSignOut,
+  onHome,
 }) {
   return (
     <header className="top-bar">
       <div className="brand">
-        <img src="/riderchess.png" alt="Logo" className="brand-logo" />
+        <button
+          type="button"
+          className="brand-home-button"
+          onClick={onHome}
+          aria-label="Go to home"
+          title="Home"
+        >
+          <img src="/riderchess.png" alt="" className="brand-logo" />
+        </button>
         <div className="brand-text">
           <h1>knight-Aura Chess</h1>
           <p className="brand-subtitle">Chess reimagined — unleash the power of the horse</p>

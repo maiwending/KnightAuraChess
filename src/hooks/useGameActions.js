@@ -4,6 +4,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   increment,
   limit,
@@ -153,11 +154,13 @@ export function useGameActions({
         }
       });
       if (bestDoc) {
+        let joinedGameId = null;
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(bestDoc.ref);
           if (!snap.exists()) return;
           const data = snap.data();
           if (data.status !== 'waiting') return;
+          if ((data.variantKey || 'base') !== variantRulesKey(setupVariantRules)) return;
           tx.update(bestDoc.ref, {
             blackId: user.uid,
             blackName: displayName,
@@ -166,10 +169,13 @@ export function useGameActions({
             status: 'waiting',
             updatedAt: serverTimestamp()
           });
+          joinedGameId = bestDoc.id;
         });
-        setGameId(bestDoc.id);
-        setMatchStatus('waiting');
-        return;
+        if (joinedGameId) {
+          setGameId(joinedGameId);
+          setMatchStatus('waiting');
+          return;
+        }
       }
       const variantRules = normalizeVariantRules(setupVariantRules);
       const newGame = new KnightJumpChess(undefined, variantRules);
@@ -251,6 +257,9 @@ export function useGameActions({
         const data = snap.data();
         if (data.status !== 'waiting') throw new Error('Game is not waiting');
         if (data.rule !== RULE_ID) throw new Error('Rule mismatch');
+        if ((data.variantKey || 'base') !== variantRulesKey(setupVariantRules)) {
+          throw new Error('Rule options do not match your selected setup');
+        }
         if (data.whiteId === user.uid) throw new Error('Cannot join your own game');
         tx.update(gameRefDoc, {
           blackId: user.uid,
@@ -266,7 +275,7 @@ export function useGameActions({
     } catch (error) {
       setMatchError(error.message || 'Failed to join game');
     }
-  }, [db, displayName, rating, setGameId, setMatchError, setMatchStatus, user]);
+  }, [db, displayName, rating, setGameId, setMatchError, setMatchStatus, setupVariantRules, user]);
 
   const toggleReady = useCallback(async () => {
     if (!user || !gameId || !gameData || !playerColor) return;
@@ -300,13 +309,26 @@ export function useGameActions({
 
   const handleTimeout = useCallback(async (losingColor) => {
     if (!gameId || !db || !gameData) return;
+    if (gameData.status !== 'active') return;
     const gameRefDoc = doc(db, GAMES_COLLECTION, gameId);
+    const winnerColor = losingColor === 'w' ? 'b' : 'w';
+    const result = `${winnerColor === 'w' ? 'White' : 'Black'} wins on time`;
+    setGameData((current) => {
+      if (!current || current.id !== gameId || current.status !== 'active') return current;
+      return {
+        ...current,
+        status: 'completed',
+        winner: winnerColor,
+        result,
+        whiteTimeLeft: losingColor === 'w' ? 0 : current.whiteTimeLeft,
+        blackTimeLeft: losingColor === 'b' ? 0 : current.blackTimeLeft,
+      };
+    });
     try {
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(gameRefDoc);
         if (!snap.exists() || snap.data().status !== 'active') return;
         const data = snap.data();
-        const winnerColor = losingColor === 'w' ? 'b' : 'w';
         const whiteScore = winnerColor === 'w' ? 1 : 0;
         const blackScore = 1 - whiteScore;
         let whiteRatingAfter = data.whiteRating ?? 1200;
@@ -332,16 +354,18 @@ export function useGameActions({
         tx.update(gameRefDoc, {
           status: 'completed',
           winner: winnerColor,
-          result: `${winnerColor === 'w' ? 'White' : 'Black'} wins on time`,
+          result,
           whiteRatingAfter,
           blackRatingAfter,
+          whiteTimeLeft: losingColor === 'w' ? 0 : data.whiteTimeLeft,
+          blackTimeLeft: losingColor === 'b' ? 0 : data.blackTimeLeft,
           updatedAt: serverTimestamp()
         });
       });
     } catch (err) {
       console.error('Timeout error:', err);
     }
-  }, [db, gameData, gameId]);
+  }, [db, gameData, gameId, setGameData]);
 
   const handleChallengeFriend = useCallback(async (friendUid, friendName) => {
     if (!user || !firebaseEnabled || !db) return;
@@ -391,19 +415,85 @@ export function useGameActions({
   const acceptChallenge = useCallback(async () => {
     if (!incomingChallenge || !user || !db) return;
     try {
-      await joinCustomGame(incomingChallenge.gameId);
+      if (incomingChallenge.isBotChallenge) {
+        const gameRefDoc = doc(db, GAMES_COLLECTION, incomingChallenge.gameId);
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(gameRefDoc);
+          if (!snap.exists()) throw new Error('Game not found');
+          const data = snap.data();
+          if (data.status !== 'waiting') throw new Error('Game already started');
+          if (data.whiteId !== user.uid) throw new Error('Challenge does not belong to you');
+          if (!data.blackId?.startsWith?.('bot_')) throw new Error('Bot opponent missing');
+          tx.update(gameRefDoc, {
+            whiteReady: true,
+            blackReady: true,
+            status: 'active',
+            startedAt: serverTimestamp(),
+            lastMoveAt: serverTimestamp(),
+            whiteTimeLeft: data.timeControl ?? DEFAULT_TIME_CONTROL,
+            blackTimeLeft: data.timeControl ?? DEFAULT_TIME_CONTROL,
+            updatedAt: serverTimestamp(),
+          });
+        });
+        setGameId(incomingChallenge.gameId);
+        setMatchStatus('active');
+        setActiveTab('play');
+      } else {
+        await joinCustomGame(incomingChallenge.gameId);
+      }
       await updateDoc(doc(db, 'game_challenges', incomingChallenge.id), { status: 'accepted' });
       localStorage.removeItem(BOT_CHALLENGE_PENDING_KEY);
     } catch (error) {
       setMatchError(error.message || 'Failed to accept challenge');
     }
-  }, [db, incomingChallenge, joinCustomGame, setMatchError, user]);
+  }, [db, incomingChallenge, joinCustomGame, setActiveTab, setGameId, setMatchError, setMatchStatus, user]);
 
   const declineChallenge = useCallback(async () => {
     if (!incomingChallenge || !db) return;
     await deleteDoc(doc(db, 'game_challenges', incomingChallenge.id));
     localStorage.removeItem(BOT_CHALLENGE_PENDING_KEY);
   }, [db, incomingChallenge]);
+
+  const challengeBot = useCallback(async (botUid, botName) => {
+    if (!user || !firebaseEnabled || !db) return;
+    setMatchError('');
+    try {
+      const botSnap = await getDoc(doc(db, 'users', botUid));
+      const botRating = botSnap.exists() ? (botSnap.data().rating ?? 1200) : 1200;
+      const variantRulesNorm = normalizeVariantRules(setupVariantRules);
+      const newGame = new KnightJumpChess(undefined, variantRulesNorm);
+      const now = serverTimestamp();
+      const gameRefDoc = await addDoc(collection(db, GAMES_COLLECTION), {
+        rule: RULE_ID,
+        variantRules: variantRulesNorm,
+        variantKey: variantRulesKey(variantRulesNorm),
+        status: 'active',
+        whiteId: user.uid,
+        whiteName: displayName,
+        whiteRating: rating,
+        whiteReady: true,
+        blackReady: true,
+        blackId: botUid,
+        blackName: botName,
+        blackRating: botRating,
+        fen: newGame.fen(),
+        moveHistory: [],
+        moveSeq: 0,
+        timeControl: selectedTimeControl,
+        whiteTimeLeft: selectedTimeControl,
+        blackTimeLeft: selectedTimeControl,
+        createdAt: now,
+        updatedAt: now,
+        startedAt: now,
+        lastMoveAt: now,
+      });
+      setGameId(gameRefDoc.id);
+      setMatchStatus('waiting');
+      setActiveTab('play');
+    } catch (error) {
+      setMatchError(error.message || 'Failed to challenge bot');
+    }
+  }, [db, displayName, firebaseEnabled, rating, selectedTimeControl, setActiveTab, setGameId, setMatchError, setMatchStatus, setupVariantRules, user]);
 
   const cancelMatchmaking = useCallback(async () => {
     if (!gameId || !gameData) return;
@@ -794,6 +884,7 @@ export function useGameActions({
 
   const handleSquareClick = useCallback((square) => {
     if (pendingPromotion) return;
+    if (isOnline && gameData?.status !== 'active') return;
     if (isOnline && playerColor !== game.turn()) return;
     if (aiEnabled && !isOnline && game.turn() === 'b') return;
 
@@ -862,6 +953,7 @@ export function useGameActions({
   }, [
     aiEnabled,
     game,
+    gameData?.status,
     gameId,
     handleLocalMove,
     handleOnlineMove,
@@ -889,6 +981,7 @@ export function useGameActions({
     toggleReady,
     handleTimeout,
     handleChallengeFriend,
+    challengeBot,
     acceptChallenge,
     declineChallenge,
     cancelMatchmaking,

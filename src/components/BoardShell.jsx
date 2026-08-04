@@ -41,7 +41,6 @@ export default function BoardShell({
   onCancelPromotion,
   onFlipBoard,
   onOpenSetup,
-  onNewGame,
   onStopAi,
   onLeaveMatch,
   matchError,
@@ -52,9 +51,14 @@ export default function BoardShell({
   gameId,
   user,
   displayName,
-  liveVoiceChat,
   setupModalProps,
 }) {
+  const chatParticipant = gameData
+    ? [
+      { uid: gameData.whiteId, name: gameData.whiteName || 'White' },
+      { uid: gameData.blackId, name: gameData.blackName || 'Black' },
+    ].find((player) => player.uid?.startsWith?.('bot_')) || null
+    : null;
   const connectionLabel = connectionState === 'live'
     ? 'Live'
     : connectionState === 'reconnecting'
@@ -145,23 +149,22 @@ export default function BoardShell({
 
       <PlayerBar position="bottom" formatClock={formatClock} {...bottomPlayer} />
 
-      <div className="board-actions">
-        <button className="btn btn-ghost" onClick={onFlipBoard} title="Flip board">
-          ⇅ Flip
+      <div className={`board-actions${!aiEnabled && !isOnline ? ' board-actions--compact' : ''}`}>
+        <button className="btn btn-ghost board-action-btn" onClick={onFlipBoard} title="Flip board">
+          <span className="board-action-icon" aria-hidden="true">⇅</span>
+          <span>Flip</span>
         </button>
-        <button className="btn btn-ghost" onClick={onOpenSetup} title="Game setup">
-          ⚙ Setup
-        </button>
-        <button className="btn btn-ghost" onClick={onNewGame} disabled={isOnline} title="New game">
-          + New
+        <button className="btn btn-primary board-action-btn" onClick={onOpenSetup} title="Game setup">
+          <span className="board-action-icon" aria-hidden="true">⚙</span>
+          <span>Setup</span>
         </button>
         {aiEnabled && (
-          <button className="btn btn-ghost" onClick={onStopAi}>
+          <button className="btn btn-ghost board-action-btn" onClick={onStopAi}>
             Stop AI
           </button>
         )}
         {isOnline && (
-          <button className="btn btn-danger" onClick={onLeaveMatch}>
+          <button className="btn btn-danger board-action-btn" onClick={onLeaveMatch}>
             Resign
           </button>
         )}
@@ -172,7 +175,7 @@ export default function BoardShell({
       {aiThinking && !isBotOnlineGame && (
         <div className="ai-thinking-indicator">
           <div className="thinking-spinner" />
-          <span className="thinking-text">AI is thinking...</span>
+          <span className="thinking-text">Thinking...</span>
         </div>
       )}
       {aiError && <p className="error-text">{aiError}</p>}
@@ -183,8 +186,7 @@ export default function BoardShell({
             gameId={gameId}
             currentUser={user}
             currentUserName={displayName}
-            liveVoiceChat={liveVoiceChat}
-            playerColor={playerColor}
+            chatParticipant={chatParticipant}
           />
         </Suspense>
       )}
